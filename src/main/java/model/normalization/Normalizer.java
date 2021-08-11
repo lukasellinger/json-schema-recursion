@@ -25,14 +25,21 @@ public class Normalizer {
   public boolean allowDistributedSchemas;
   private SchemaFile rootSchema;
   
+  public static void main(String[] args) {
+    File file = new File("src/test/resources/test.json");
+    Normalizer normalizer = new Normalizer(file, false, RepositoryType.NORMAL);
+    System.out.println(normalizer.normalize());
+  }
+  
   /**
    * 
    * @param file which should be normalized.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    */
-  public Normalizer(File file, boolean allowDistributedSchemas) {
-    rootSchema = new SchemaFile(file, allowDistributedSchemas);
+  public Normalizer(File file, boolean allowDistributedSchemas, RepositoryType repType) {
+    rootSchema = new SchemaFile(file, allowDistributedSchemas, repType);
   }
 
   /**
@@ -41,9 +48,10 @@ public class Normalizer {
    * @param id location of where the file is from. Is used as id if no id is declared in the schema.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    */
-  public Normalizer(File file, URI id, boolean allowDistributedSchemas) {
-    rootSchema = new SchemaFile(file, id, allowDistributedSchemas);
+  public Normalizer(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
+    rootSchema = new SchemaFile(file, id, allowDistributedSchemas, repType);
   }
 
   public SchemaFile getRootSchema() {

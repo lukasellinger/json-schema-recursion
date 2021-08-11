@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import com.google.gson.JsonSyntaxException;
 import model.normalization.Normalizer;
+import model.normalization.RepositoryType;
 import util.FileLoader;
 
 class RecursionCheckerTest {
@@ -27,8 +28,8 @@ class RecursionCheckerTest {
   @ValueSource(ints = {2, 3, 17, 18, 19, 20, 21, 23, 24, 26, 30, 31, 32, 34, 36, 38, 40, 41, 42, 44,
       45, 46, 48})
   void noRecursionTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     RecursionChecker checker = new RecursionChecker(normalizer.normalize());
     assertEquals(RecursionType.NONE, checker.checkForRecursion());
   }
@@ -36,8 +37,8 @@ class RecursionCheckerTest {
   @ParameterizedTest
   @ValueSource(ints = {5, 7, 9, 10, 11, 12, 13, 14, 49, 50, 51, 52, 53})
   void recursionTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     RecursionChecker checker = new RecursionChecker(normalizer.normalize());
     assertEquals(RecursionType.RECURSION, checker.checkForRecursion());
   }
@@ -45,8 +46,8 @@ class RecursionCheckerTest {
   @ParameterizedTest
   @ValueSource(ints = {4, 6, 8, 15, 16, 35, 43, 47})
   void guardedRecursionTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     RecursionChecker checker = new RecursionChecker(normalizer.normalize());
     assertEquals(RecursionType.GUARDED, checker.checkForRecursion());
   }

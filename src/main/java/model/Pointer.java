@@ -78,11 +78,7 @@ public class Pointer {
    *         if not.
    */
   public boolean referencesDefChild() {
-    if (ref.startsWith("#/definitions/") && ref.split("/").length == 3) {
-      return true;
-    } else {
-      return false;
-    }
+    return ref.startsWith("#/definitions/") && ref.split("/").length == 3;
   }
 
   /**

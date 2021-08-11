@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import model.normalization.Normalizer;
+import model.normalization.RepositoryType;
 import util.Converter;
 import util.Log;
 import util.SchemaUtil;
@@ -24,22 +25,22 @@ import util.TestObject;
  * @author Lukas Ellinger
  */
 public class TestSuiteVerifier {
-  private final static String SCHEMA_DIR = "/Users/lukasellinger/Library/draft4";
-
-  public static void main(String[] args) {
-    checkForCorrectNormalization(true);
-  }
-
   /**
    * Checks whether the normalization was correct for the JSON Schema TestSuite Draft06. Therefore
    * it is checked whether the validity of the tests equals the validity if validated with the
    * normalized schema. If not, then a entry in the log-file is written.
    * 
+   * @param testSuiteDir directory in which files of the testsuite are stored.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
    */
-  public static void checkForCorrectNormalization(boolean allowDistributedSchemas) {
-    List<Pair<JsonObject, TestObject[]>> schemas = getTestData();
+  public static void checkForCorrectNormalization(File testSuiteDir,
+      boolean allowDistributedSchemas) {
+    if (!testSuiteDir.isDirectory()) {
+      throw new IllegalArgumentException(testSuiteDir.getName() + " needs to be a directory");
+    }
+
+    List<Pair<JsonObject, TestObject[]>> schemas = getTestData(testSuiteDir);
 
     for (Pair<JsonObject, TestObject[]> schema : schemas) {
       File tmp = new File("/tmp/schema.json");
@@ -52,7 +53,8 @@ public class TestSuiteVerifier {
 
       try {
         JSONObject normalizedSchema =
-            new JSONObject(new Normalizer(tmp, allowDistributedSchemas).normalize().toString());
+            new JSONObject(new Normalizer(tmp, allowDistributedSchemas, RepositoryType.TESTSUITE)
+                .normalize().toString());
         for (TestObject test : schema.getRight()) {
           SchemaLoader loader = SchemaLoader.builder().schemaJson(normalizedSchema).build();
 
@@ -67,12 +69,15 @@ public class TestSuiteVerifier {
   }
 
   /**
-   * Splits files of testsuite in schemas with their specific test data.
+   * Splits files of the testsuite in schemas with their specific test data.
    * 
+   * @param testSuiteDir directory in which files of the testsuite are stored.
    * @return schemas with their specific test data.
    */
-  private static List<Pair<JsonObject, TestObject[]>> getTestData() {
-    File[] schemas = new File(SCHEMA_DIR).listFiles();
+  private static List<Pair<JsonObject, TestObject[]>> getTestData(File testSuiteDir) {
+    assert testSuiteDir.isDirectory();
+
+    File[] schemas = testSuiteDir.listFiles();
     List<Pair<JsonObject, TestObject[]>> testData = new ArrayList<>();
     for (File file : schemas) {
       try {
@@ -108,17 +113,17 @@ public class TestSuiteVerifier {
   }
 
   /**
-   * Stores all schemas of <code>schemas</code> in <code>dir</code>.
+   * Stores all schemas of <code>splittedTests</code> in <code>dir</code>.
    * 
    * @param dir location of where to store schemas.
-   * @param schemas to store the schemas from.
+   * @param splittedTests to store the schemas from.
    * @throws IOException if schemas cannot be stored to <code>dir</code>.
    */
-  private static void extractSchemas(File dir, List<Pair<JsonObject, TestObject[]>> schemas)
+  private static void extractSchemas(File dir, List<Pair<JsonObject, TestObject[]>> splittedTests)
       throws IOException {
     dir.mkdir();
 
-    for (Pair<JsonObject, TestObject[]> pair : schemas) {
+    for (Pair<JsonObject, TestObject[]> pair : splittedTests) {
       String belongsTo = pair.getRight()[0].getBelongsTo();
       belongsTo = belongsTo.substring(0, belongsTo.indexOf(".json Schema:"))
           + belongsTo.charAt(belongsTo.indexOf("Schema: ") + 8) + ".json";

@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
-import java.security.InvalidParameterException;
 import java.util.List;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
@@ -14,6 +13,7 @@ import com.google.gson.JsonElement;
 import exception.DistributedSchemaException;
 import exception.InvalidReferenceException;
 import model.normalization.Normalizer;
+import model.normalization.RepositoryType;
 import model.recursion.RecursionChecker;
 import model.recursion.RecursionType;
 import util.CSVUtil;
@@ -35,9 +35,15 @@ public class Analyser {
    * @param dir has to be a directory. all files in this get normalized.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    * @throws IOException
    */
-  public static void analyse(File dir, boolean allowDistributedSchemas) throws IOException {
+  public static void analyse(File dir, boolean allowDistributedSchemas, RepositoryType repType)
+      throws IOException {
+    if (!dir.isDirectory()) {
+      throw new IllegalArgumentException(dir.getName() + " needs to be a directory");
+    }
+
     File normalizedDir = new File("Normalized_" + dir.getName());
     normalizedDir.mkdir();
 
@@ -54,7 +60,7 @@ public class Analyser {
       if (SchemaUtil.isValidToDraft(file)) {
         try {
           RecursionChecker checker = new RecursionChecker(
-              SchemaUtil.normalize(file, null, normalizedDir, allowDistributedSchemas));
+              SchemaUtil.normalize(file, null, normalizedDir, allowDistributedSchemas, repType));
           try {
             RecursionType type = checker.checkForRecursion();
             if (type == RecursionType.GUARDED || type == RecursionType.RECURSION) {
@@ -91,21 +97,27 @@ public class Analyser {
 
   /**
    * Prints stats to log-file and creates csv-file with schema types (single-file schemas,
-   * distributed schemas). Uses cleaned schemas (all schemas that could be normalized.
+   * distributed schemas). Uses cleaned schemas (all schemas that could be normalized).
    * 
-   * @param csvRecursionPath path to csv file of recursion analysis.
-   * @param unnormalizedDir path to directory of unnormalized schemas.
-   * @param normalizedDir path to directory of normalized schemas.
+   * @param csvRecursion csv file of recursion analysis.
+   * @param unnormalizedDir directory of unnormalized schemas.
+   * @param normalizedDir directory of normalized schemas.
    * @throws IOException
    */
-  public static void executeDetailedStats(String csvRecursionPath, File unnormalizedDir,
+  public static void executeDetailedStats(File csvRecursion, File unnormalizedDir,
       File normalizedDir) throws IOException {
+    if (!csvRecursion.exists() || !unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
+      throw new IllegalArgumentException(csvRecursion.getName() + " needs to exist and "
+          + unnormalizedDir.getName() + ", " + normalizedDir.getName() + " need to be directories");
+    }
 
     separateSchemasByType(unnormalizedDir, normalizedDir);
-    detailedStats("schemaTypes.csv", csvRecursionPath, unnormalizedDir, normalizedDir);
+    detailedStats(new File("schemaTypes.csv"), csvRecursion, unnormalizedDir, normalizedDir);
   }
 
   private static void createAnalysisCSV(File csv) throws IOException {
+    assert csv.exists();
+
     String[] head =
         {"name", "recursiv", "unguarded_recursiv", "invalid_reference", "illegal_draft"};
     CSVUtil.writeToCSV(csv, head);
@@ -130,6 +142,10 @@ public class Analyser {
    * @throws IOException
    */
   public static int countRowsJSON(File file) throws IOException {
+    if (!file.exists()) {
+      throw new IllegalArgumentException(file.getName() + " needs to exist.");
+    }
+
     Gson gson = new GsonBuilder().setPrettyPrinting().create();
     JsonElement element =
         gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonElement.class);
@@ -147,26 +163,26 @@ public class Analyser {
    */
   public static void separateSchemasByType(File unnormalizedDir, File normalizedDir)
       throws IOException {
-    if (unnormalizedDir.isDirectory() && normalizedDir.isDirectory()) {
-      File csv = new File("schemaTypes.csv");
-      String[] head = {"name", "distributed"};
-      CSVUtil.writeToCSV(csv, head);
+    if (!unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
+      throw new IllegalArgumentException(unnormalizedDir.getName() + " and "
+          + normalizedDir.getName() + " need to be directories");
+    }
 
-      for (File file : normalizedDir.listFiles()) {
-        File unnormalized = new File(unnormalizedDir, file.getName().replace("_Normalized", ""));
-        Normalizer normalizer = new Normalizer(unnormalized, false);
-        try {
-          normalizer.normalize();
-          String[] row = {unnormalized.getName(), ""};
-          CSVUtil.writeToCSV(csv, row);
-        } catch (DistributedSchemaException e) {
-          String[] row = {unnormalized.getName(), "TRUE"};
-          CSVUtil.writeToCSV(csv, row);
-        }
+    File csv = new File("schemaTypes.csv");
+    String[] head = {"name", "distributed"};
+    CSVUtil.writeToCSV(csv, head);
+
+    for (File file : normalizedDir.listFiles()) {
+      File unnormalized = new File(unnormalizedDir, file.getName().replace("_Normalized", ""));
+      Normalizer normalizer = new Normalizer(unnormalized, false, RepositoryType.NORMAL);
+      try {
+        normalizer.normalize();
+        String[] row = {unnormalized.getName(), ""};
+        CSVUtil.writeToCSV(csv, row);
+      } catch (DistributedSchemaException e) {
+        String[] row = {unnormalized.getName(), "TRUE"};
+        CSVUtil.writeToCSV(csv, row);
       }
-    } else {
-      throw new InvalidParameterException(unnormalizedDir.getName() + " and "
-          + normalizedDir.getName() + " need to be a directory");
     }
   }
 
@@ -174,16 +190,23 @@ public class Analyser {
    * Prints stats to log-file and creates csv-file with schema types (single-file schemas,
    * distributed schemas). Uses cleaned schemas (all schemas that could be normalized.
    * 
-   * @param csvTypePath path to csv file of type analysis.
-   * @param csvRecursionPath path to csv file of recursion analysis.
-   * @param unnormalizedDir path to directory of unnormalized schemas.
-   * @param normalizedDir path to directory of normalized schemas.
+   * @param csvRecursion csv file of recursion analysis.
+   * @param csvSchemaTypes csv file of type (single or distributed) analysis.
+   * @param unnormalizedDir directory of unnormalized schemas.
+   * @param normalizedDir directory of normalized schemas.
    * @throws IOException
    */
-  public static void detailedStats(String csvTypePath, String csvRecursionPath,
-      File unnormalizedDir, File normalizedDir) throws IOException {
-    List<CSVRecord> recordsType = CSVUtil.loadCSV(csvTypePath, ',', true);
-    List<CSVRecord> recordsRecursion = CSVUtil.loadCSV(csvRecursionPath, ',', true);
+  public static void detailedStats(File csvSchemaTypes, File csvRecursion, File unnormalizedDir,
+      File normalizedDir) throws IOException {
+    if (!csvRecursion.exists() || !csvSchemaTypes.exists() || !unnormalizedDir.isDirectory()
+        || !normalizedDir.isDirectory()) {
+      throw new IllegalArgumentException(csvRecursion.getName() + ", " + csvSchemaTypes.getName()
+          + " need to exist and " + unnormalizedDir.getName() + ", " + normalizedDir.getName()
+          + " need to be directories");
+    }
+
+    List<CSVRecord> recordsType = CSVUtil.loadCSV(csvSchemaTypes, ',', true);
+    List<CSVRecord> recordsRecursion = CSVUtil.loadCSV(csvRecursion, ',', true);
     int singleFilesCount = 0;
     int distributedFilesCount = 0;
     int totalLocSingleFile = 0;
@@ -257,6 +280,8 @@ public class Analyser {
   }
 
   private static double blowUp(int base, int value) {
+    assert base != 0;
+
     return ((double) value) / base - 1;
   }
 }

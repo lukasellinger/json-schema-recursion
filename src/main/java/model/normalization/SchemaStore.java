@@ -14,6 +14,7 @@ import exception.DistributedSchemaException;
  */
 public class SchemaStore {
   private boolean allowDistributedSchemas;
+  private RepositoryType repType;
   private URI root;
   private List<JsonElement> visited = new ArrayList<>();
   private List<SchemaFile> loadedFiles = new ArrayList<>();
@@ -24,8 +25,11 @@ public class SchemaStore {
    * @param rootSchemaFile top-level schema.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    */
-  public SchemaStore(SchemaFile rootSchemaFile, boolean allowDistributedSchemas) {
+  public SchemaStore(SchemaFile rootSchemaFile, boolean allowDistributedSchemas,
+      RepositoryType repType) {
+    this.repType = repType;
     this.allowDistributedSchemas = allowDistributedSchemas;
     this.root = rootSchemaFile.getId();
     loadedFiles.add(rootSchemaFile);
@@ -33,6 +37,10 @@ public class SchemaStore {
 
   public URI getRoot() {
     return root;
+  }
+
+  public RepositoryType getRepType() {
+    return repType;
   }
 
   /**

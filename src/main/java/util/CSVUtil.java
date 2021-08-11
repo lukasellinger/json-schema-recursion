@@ -22,6 +22,7 @@ public class CSVUtil {
   /**
    * Appends <code>collumns</code> to <code>csv</code>. If file does not exist yet, it is created.
    * 
+   * @param csv file to write to.
    * @param collumns to be added.
    * @throws IOException if it cannot be written to <code>csv</code> file.
    */
@@ -39,16 +40,16 @@ public class CSVUtil {
    * Gets all records of csv file at <code>filepath</code>. <code>delim</code> defines the
    * separator.
    * 
-   * @param filepath path to csv-file.
+   * @param csv file to be loaded.
    * @param delim used in csv-file.
    * @param firstRowHeader <code>true</code>, if first row of csv is header. <code>false</code>, if
    *        not.
    * @return records of csv-file.
    * @throws IOException if it cannot be read from <code>filepath</code>.
    */
-  public static List<CSVRecord> loadCSV(String filepath, char delim, boolean firstRowHeader)
+  public static List<CSVRecord> loadCSV(File csv, char delim, boolean firstRowHeader)
       throws IOException {
-    Reader in = new FileReader(filepath);
+    Reader in = new FileReader(csv);
     List<CSVRecord> records;
     if (firstRowHeader) {
       records =

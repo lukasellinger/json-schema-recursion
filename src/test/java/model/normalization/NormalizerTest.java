@@ -29,8 +29,8 @@ public class NormalizerTest {
   @ValueSource(ints = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23,
       24, 26, 30, 31, 32, 34, 35, 36, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53})
   void basicSchemasNormalizationTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     assertEquals(FileLoader.getStoredNormalizedSchema(BASIC_SCHEMAS, i), normalizer.normalize());
   }
 
@@ -38,8 +38,8 @@ public class NormalizerTest {
   @ValueSource(ints = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23,
       24, 26, 30, 31, 32, 34, 35, 36, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48})
   void normalizeIdempotentTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(BASIC_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     normalizer.normalize();
     assertEquals(FileLoader.getStoredNormalizedSchema(BASIC_SCHEMAS, i), normalizer.normalize());
   }
@@ -47,8 +47,8 @@ public class NormalizerTest {
   @ParameterizedTest
   @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12})
   void fileRefsSchemasTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(FILE_REFS_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(FILE_REFS_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     assertEquals(FileLoader.getStoredNormalizedSchema(FILE_REFS_SCHEMAS, i),
         normalizer.normalize());
   }
@@ -57,7 +57,8 @@ public class NormalizerTest {
   void schemaWithRefToOneDirectoryUpTest() throws IOException {
     String path = "src/test/resources/fileRefsSchemas/test13/";
     JsonObject normalized = FileLoader.loadSchema(path + "Normalized_testSchema13.json");
-    Normalizer normalizer = new Normalizer(new File(path + "testSchema13.json"), true);
+    Normalizer normalizer =
+        new Normalizer(new File(path + "testSchema13.json"), true, RepositoryType.NORMAL);
     assertEquals(normalized, normalizer.normalize());
   }
 
@@ -65,7 +66,8 @@ public class NormalizerTest {
   @ValueSource(ints = {1, 2, 3})
   void absoluteURLRefsSchemasTest(int i) throws IOException {
     Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(ABSOLUTE_URL_REFS_SCHEMAS, i, "")), true);
+        new Normalizer(new File(MessageFormat.format(ABSOLUTE_URL_REFS_SCHEMAS, i, "")), true,
+            RepositoryType.NORMAL);
     assertEquals(FileLoader.getStoredNormalizedSchema(ABSOLUTE_URL_REFS_SCHEMAS, i),
         normalizer.normalize());
   }
@@ -73,8 +75,8 @@ public class NormalizerTest {
   @ParameterizedTest
   @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9})
   void idRefsSchemasTest(int i) throws IOException {
-    Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(ID_REFS_SCHEMAS, i, "")), true);
+    Normalizer normalizer = new Normalizer(new File(MessageFormat.format(ID_REFS_SCHEMAS, i, "")),
+        true, RepositoryType.NORMAL);
     assertEquals(FileLoader.getStoredNormalizedSchema(ID_REFS_SCHEMAS, i), normalizer.normalize());
   }
 
@@ -82,7 +84,8 @@ public class NormalizerTest {
   @ValueSource(ints = {1, 2, 3})
   void invalidFragmentSchemasTest(int i) throws IOException {
     Normalizer normalizer =
-        new Normalizer(new File(MessageFormat.format(INVALID_FRAGMENT_SCHEMAS, i, "")), true);
+        new Normalizer(new File(MessageFormat.format(INVALID_FRAGMENT_SCHEMAS, i, "")), true,
+            RepositoryType.NORMAL);
     assertThrows(InvalidFragmentException.class, () -> normalizer.normalize());
   }
 }

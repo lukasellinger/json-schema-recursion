@@ -2,12 +2,14 @@ package model.normalization;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Stack;
+import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -40,13 +42,14 @@ public class SchemaFile {
    * @param file of which the <code>SchemaFile</code> should be created.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    */
-  public SchemaFile(File file, boolean allowDistributedSchemas) {
+  public SchemaFile(File file, boolean allowDistributedSchemas, RepositoryType repType) {
     id = file.toURI();
     loadJsonObject();
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
-    store = new SchemaStore(this, allowDistributedSchemas);
+    store = new SchemaStore(this, allowDistributedSchemas, repType);
   }
 
   /**
@@ -68,14 +71,15 @@ public class SchemaFile {
    * @param id location of where the file is from. Is used as id if no id is declared in the schema.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    */
-  public SchemaFile(File file, URI id, boolean allowDistributedSchemas) {
+  public SchemaFile(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
     this.id = file.toURI();
     loadJsonObject();
     draft = SchemaUtil.getDraft(object);
     this.id = id;
     setIdFromSchema();
-    store = new SchemaStore(this, allowDistributedSchemas);
+    store = new SchemaStore(this, allowDistributedSchemas, repType);
   }
 
   public URI getRoot() {
@@ -86,42 +90,38 @@ public class SchemaFile {
     return draft;
   }
 
-  /**
-   * Resolves the stored <code>id</code> and tries to parse and store it to <code>object</code>.
-   */
   private void loadJsonObject() {
     Gson gson = new Gson();
+
     try {
       try {
-        try {
-          object = Store.getSchema(id);
-        } catch (StoreException e) {
-          object = gson.fromJson(URLLoader.loadWithRedirect(id.toURL()), JsonObject.class);
-          Store.storeSchema(object, id);
-        }
-      } catch (JsonSyntaxException e) {
-        try {
-          // for schemas at github raw (schema corpus)
-          URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
-              id.getFragment());
-          object = gson.fromJson(URLLoader.loadWithRedirect(idRaw.toURL()), JsonObject.class);
-          Store.storeSchema(object, id);
-        } catch (URISyntaxException e1) {
-          throw new InvalidIdentifierException(id + " is no valid URI with query raw=true");
-        } catch (JsonSyntaxException e2) {
-          throw new InvalidIdentifierException("At " + id + " is no valid JsonObject");
-        }
+        object = Store.getSchema(id);
+      } catch (StoreException e) {
+        object = gson.fromJson(URLLoader.loadWithRedirect(id.toURL()), JsonObject.class);
+        Store.storeSchema(object, id);
       }
-    } catch (IOException e) {
-      /*
-       * use this for JSON Schema TestSuite
-       * 
-       * File file = new File(id.toString().replace("http://localhost:1234/",
-       * "pathToRemotDirectory")); try { object = gson.fromJson(FileUtils.readFileToString(file,
-       * "UTF-8"), JsonObject.class); } catch (IOException e1) { throw new
-       * InvalidIdentifierException("Schema with " + id + " cannot be loaded"); }
-       */
-      throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
+    } catch (IOException | JsonSyntaxException e) {
+      try {
+        if (store.getRepType().equals(RepositoryType.TESTSUITE)) {
+          File file = new File(
+              id.toString().replace("http://localhost:1234/", "/home/TestSuiteDraft4/remotes"));
+          object = gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
+          Store.storeSchema(object, id);
+        } else if (store.getRepType().equals(RepositoryType.CORPUS)) {
+          try {
+            URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
+                id.getFragment());
+            object = gson.fromJson(URLLoader.loadWithRedirect(idRaw.toURL()), JsonObject.class);
+            Store.storeSchema(object, id);
+          } catch (URISyntaxException e1) {
+            throw new InvalidIdentifierException(id + " is no valid URI with query raw=true");
+          }
+        }
+      } catch (IOException e2) {
+        throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
+      } catch (JsonSyntaxException e2) {
+        throw new InvalidIdentifierException("At " + id + " is no valid JsonObject");
+      }
     }
   }
 
@@ -249,6 +249,7 @@ public class SchemaFile {
    * <code>SchemaFile</code> is added to the <code>store</coded> and returned.
    * 
    * &#64;param file of which the <code>SchemaFile</code> should be returned.
+   * 
    * @return <code>SchemaFile</code> of <code>file</code>. If the corresponding is already stored in
    *         the <code>store</code>, then the stored one is returned
    */

@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import exception.DraftValidationException;
 import model.Draft;
 import model.normalization.Normalizer;
+import model.normalization.RepositoryType;
 
 /**
  * Offers utils for JSON Schemas.
@@ -351,16 +352,17 @@ public class SchemaUtil {
    * @param store to store normalized schema.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
+   * @param repType type of Repository.
    * @return normalized schema.
    * @throws IOException
    */
   public static JsonObject normalize(File unnormalized, URI uri, File store,
-      boolean allowDistributedSchemas) throws IOException {
+      boolean allowDistributedSchemas, RepositoryType repType) throws IOException {
     Normalizer normalizer;
     if (uri != null) {
-      normalizer = new Normalizer(unnormalized, uri, allowDistributedSchemas);
+      normalizer = new Normalizer(unnormalized, uri, allowDistributedSchemas, repType);
     } else {
-      normalizer = new Normalizer(unnormalized, allowDistributedSchemas);
+      normalizer = new Normalizer(unnormalized, allowDistributedSchemas, repType);
     }
         
     File normalizedFile =
