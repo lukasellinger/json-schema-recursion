@@ -52,6 +52,7 @@ public class Main {
           default:
             throw new IllegalArgumentException("Unexpected value: " + args[1]);
         }
+        break;
       case "-recursion":
         Analyser analyser1 = new Analyser();
         analyser1.analyseRecursion(new File(args[1]));
