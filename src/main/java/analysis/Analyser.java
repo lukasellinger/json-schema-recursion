@@ -74,7 +74,6 @@ public class Analyser {
       CSVUtil.writeToCSV(analysisFile, fileRow);
     }
 
-    Log.info("----------------------------------");
     Log.info("Total: " + files.length);
     Log.info("Recursive: " + recursive);
     Log.info("Thereof unguarded recursive: " + unguardedRecursive);
