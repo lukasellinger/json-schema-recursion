@@ -1,12 +1,9 @@
 package util;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.net.URI;
 import java.util.List;
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
@@ -44,20 +41,18 @@ public class Store {
       counter++;
     }
   }
-  
+
   public static JsonObject getSchema(URI uri) throws StoreException, IOException {
     if (csv.exists()) {
-      Reader in = new FileReader(csv);
-      List<CSVRecord> records = CSVFormat.DEFAULT.withDelimiter(',').parse(in).getRecords();
-      in.close();
-      
+      List<CSVRecord> records = CSVUtil.loadCSV(csv, ',', false);
+
       for (CSVRecord record : records) {
         if (record.get(1).equals(uri.toString())) {
           File file = new File(dir, record.get(0));
           return new Gson().fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
         }
       }
-      
+
       throw new StoreException("No file associate with " + uri + " found in store");
     } else {
       throw new StoreException(csv.getName() + " does not exist");

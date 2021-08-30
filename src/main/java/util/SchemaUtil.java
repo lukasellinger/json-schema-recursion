@@ -149,11 +149,14 @@ public class SchemaUtil {
   }
 
   /**
-   * Gets draft version number of <code>string</code>. If a not supported one is used, 4 is returned
-   * for draft03 and 6 for everything else. <code>com.google.gson.JsonObject</code> is used.
+   * Gets draft validation number of <code>object</code>. Returns 7 for draft07, 6 for draft06 and 4
+   * for draft04. If no or no supported draft was specified with "$schema", it will be checked
+   * whether "id" or "$id" is used. If it is "$id" then 6 is returned. As default 4 is returned.
    * 
    * @param object to get the draft version number from.
-   * @return 7, if draft07, 4, if draft03 or 04 and 6 for everything else .
+   * @return Returns 7 for draft07, 6 for draft06 and 4 for draft04. If no or no supported draft was
+   *         specified with "$schema", it will be checked whether "id" or "$id" is used. If it is
+   *         "$id" then 6 is returned. As default 4 is returned.
    */
   public static int getValidationDraftNumber(JsonObject object) {
     if (object.has("$schema")) {
@@ -209,11 +212,7 @@ public class SchemaUtil {
   }
 
   /**
-   * Gets draft version number of <code>string</code>. If a not supported one is used, 4 is returned
-   * for draft03 and 6 for everything else. <code>org.json.JSONObject</code> is used.
-   * 
-   * @param object to get the draft version number from.
-   * @return 7, if draft07, 4, if draft03 or 04 and 6 for everything else .
+   * {@link getValidationDraftNumber(JsonObject)}
    */
   public static int getValidationDraftNumber(JSONObject object) {
     return getValidationDraftNumber(Converter.toJson(object));
@@ -221,15 +220,13 @@ public class SchemaUtil {
 
   /**
    * Deletes all schemas which are not valid for draft0<code>i</code>. Draft04, 06 and 07 are
-   * supported.
+   * supported. If a file does not contain a valid <code>JSONObject</code>, it is deleted, too.
    * 
    * @param dir directory in which the schemas are.
    * @param i draftNumber. 4, 6 and 7 are supported.
-   * @throws JSONException if draftschema is corrupt.
    * @throws IOException if draftfile cannot be loaded.
    */
-  public static void deleteInvalidSchemasForDraft(File dir, int i)
-      throws JSONException, IOException {
+  public static void deleteInvalidSchemasForDraft(File dir, int i) throws IOException {
     JSONObject draft = (JSONObject) new JSONTokener(
         SchemaUtil.class.getClassLoader().getResourceAsStream("drafts/draft" + i + ".json"))
             .nextValue();
@@ -241,7 +238,7 @@ public class SchemaUtil {
         if (!isValid(SchemaLoader.load(draft), obj)) {
           file.delete();
         }
-      } catch (Exception e) {
+      } catch (JSONException e) {
         file.delete();
       }
     }
@@ -272,10 +269,10 @@ public class SchemaUtil {
   }
 
   /**
-   * Removes all ids in <code>object</code> including ids in subschemas.
-   * <code>com.google.gson.JsonObject</code> is used.
+   * Removes all ids in subschemas of <code>object</code>. <code>com.google.gson.JsonObject</code>
+   * is used.
    * 
-   * @param object in which the ids should be removed.
+   * @param object in which the ids in subschemas should be removed.
    */
   public static void removeIds(JsonObject object) {
     for (Entry<String, JsonElement> entry : object.entrySet()) {
@@ -310,12 +307,14 @@ public class SchemaUtil {
 
   /**
    * Deletes all schemas which are not using <code>draft</code>. This simply checks whether
-   * <code>"$schema"</code> contains <code>draft</code>.
+   * <code>"$schema"</code> contains <code>draft</code>. If a file does not contain a valid
+   * <code>JSONObject</code>, it is deleted, too.
    * 
    * @param dir directory in which the schemas are.
    * @param draft of which schemas should be kept.
+   * @throws IOException
    */
-  public static void deleteSchemasNotUsingDraft(File dir, String draft) {
+  public static void deleteSchemasNotUsingDraft(File dir, String draft) throws IOException {
     for (File file : dir.listFiles()) {
       JSONObject obj;
       try {
@@ -324,7 +323,7 @@ public class SchemaUtil {
         if (getDraftString(obj).contains(draft)) {
           file.delete();
         }
-      } catch (Exception e) {
+      } catch (JSONException e) {
         file.delete();
       }
     }
@@ -364,15 +363,14 @@ public class SchemaUtil {
     } else {
       normalizer = new Normalizer(unnormalized, allowDistributedSchemas, repType);
     }
-        
-    File normalizedFile =
-        new File(store, getNormalizedFileName(unnormalized.getName()));
 
+    File normalizedFile = new File(store, getNormalizedFileName(unnormalized.getName()));
+        
     JsonObject normalizedSchema = normalizer.normalize();
     writeJsonToFile(normalizedSchema, normalizedFile);
     return normalizedSchema;
   }
-  
+
   /**
    * Gets the filename of the normalized schema.
    * 
@@ -381,7 +379,7 @@ public class SchemaUtil {
    */
   public static String getNormalizedFileName(String unnormalizedFileName) {
     int lastOccurence = unnormalizedFileName.lastIndexOf(".json");
-    
+
     if (lastOccurence != -1) {
       unnormalizedFileName = unnormalizedFileName.substring(0, lastOccurence);
       return unnormalizedFileName + "_Normalized.json";
@@ -389,7 +387,7 @@ public class SchemaUtil {
       throw new IllegalArgumentException(unnormalizedFileName + " does not equal normal filename");
     }
   }
-    
+
   /**
    * Gets the definitions object of <code>schema</code>. If there is no definitions object, then an
    * empty <code>JsonObject</code> gets returned.

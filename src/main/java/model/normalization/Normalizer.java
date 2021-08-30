@@ -22,14 +22,7 @@ import util.URIUtil;
  * @author Lukas Ellinger
  */
 public class Normalizer {
-  public boolean allowDistributedSchemas;
   private SchemaFile rootSchema;
-  
-  public static void main(String[] args) {
-    File file = new File("src/test/resources/test.json");
-    Normalizer normalizer = new Normalizer(file, false, RepositoryType.NORMAL);
-    System.out.println(normalizer.normalize());
-  }
   
   /**
    * 
@@ -187,5 +180,10 @@ public class Normalizer {
     for (JsonElement element : array) {
       traverseTree(element, defsList, schema);
     }
+  }
+  
+  public static void main(String[] args) {
+    Normalizer normalizer = new Normalizer(new File("/Users/lukasellinger/Library/compilerconfig.json"), true, RepositoryType.NORMAL);
+    normalizer.normalize();
   }
 }

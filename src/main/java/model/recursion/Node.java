@@ -34,7 +34,8 @@ public class Node {
   }
 
   /**
-   * Only checks whether stored <code>element</code> equals. If it is guarded is ignored.
+   * Only checks whether stored <code>element</code> is equal with <code>element</code> of
+   * <code>other</code>.
    */
   @Override
   public boolean equals(Object other) {

@@ -5,8 +5,10 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
+import org.apache.commons.io.FileUtils;
+import java.io.File;
+import java.io.IOException;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,7 +26,6 @@ import util.URIUtil;
 public class RecursionChecker {
 
   private JsonObject schema;
-  private Gson gson;
 
   /**
    * 
@@ -32,8 +33,11 @@ public class RecursionChecker {
    *        recursion.
    */
   public RecursionChecker(String schema) {
-    gson = new GsonBuilder().setPrettyPrinting().create();
-    this.schema = gson.fromJson(schema, JsonObject.class);
+    this.schema = new Gson().fromJson(schema, JsonObject.class);
+  }
+  
+  public RecursionChecker(File file) throws IOException {
+    this(FileUtils.readFileToString(file, "UTF-8"));
   }
 
   /**
@@ -42,7 +46,6 @@ public class RecursionChecker {
    *        recursion.
    */
   public RecursionChecker(JsonObject schema) {
-    gson = new GsonBuilder().setPrettyPrinting().create();
     this.schema = schema;
   }
 
@@ -180,12 +183,12 @@ public class RecursionChecker {
    */
   private List<Pointer> getEdgesObject(JsonObject object, boolean guarded) {
     List<Pointer> pointers = new ArrayList<>();
+    
     for (Entry<String, JsonElement> entry : object.entrySet()) {
       if (entry.getValue().isJsonPrimitive() && entry.getKey().equals("$ref")) {
         String refString = entry.getValue().getAsString();
         URI ref;
         try {
-          //ref = new URI(refString);
           ref = URIUtil.toURI(refString);
         } catch (URISyntaxException e) {
           throw new InvalidIdentifierException("reference which is not a valid URI: " + refString);
@@ -193,7 +196,7 @@ public class RecursionChecker {
         Pointer pointer = new Pointer(ref, guarded);
         pointers.add(pointer);
       } else {
-        if (!guarded && isEntryGuarded(entry)) {
+        if (isEntryGuarded(entry)) {
           pointers.addAll(getEdges(entry.getValue(), true));
         } else {
           pointers.addAll(getEdges(entry.getValue(), guarded));

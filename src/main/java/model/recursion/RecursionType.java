@@ -1,7 +1,7 @@
 package model.recursion;
 
 /**
- * Offers three different types of Recursion
+ * Offers three different types of Recursion.
  * 
  * @author Lukas Ellinger
  */

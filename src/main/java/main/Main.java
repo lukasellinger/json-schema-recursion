@@ -3,7 +3,9 @@ package main;
 import java.io.File;
 import java.io.IOException;
 import analysis.Analyser;
+import analysis.DirNormalizer;
 import analysis.SchemaCorpus;
+import analysis.TestSuite;
 import model.normalization.RepositoryType;
 
 /**
@@ -17,30 +19,49 @@ public class Main {
    * analysing the schema dataset again these are used and no remote refs are downloaded from the
    * internet. If you want to analyse a different dataset you have to delete these two files.
    * 
-   * @param args choose between -analyse | -corpus, then -true if remote refs are allowed, -false if
-   *        not. Third is the path in quotation marks to directory. If -corpus is chosen path should
-   *        be directory of schema_corpus and fourth parameter should be path to repos_fullPath.csv.
-   *        || if -stats is chosen as first parameter. Next parameters have to be path to
-   *        analysis.csv, path to unnormalizedDir and at last path to normalizedDir. //TODO
+   * @param args As first parameter choose between -normalize | -recursion | -stats. If -normalize
+   *        is chosen, second parameter will be the repositorytype. Choose between -corpus |
+   *        -testsuite | -normal. Third parameter is the path to the directory to analyse in
+   *        quotation marks. If -corpus is chosen, an additional fourth parameter with the path to
+   *        repos_fullpath.csv in quotation marks will be needed. If -recursion is chosen, second
+   *        parameter will be the path to the directory in which the normalized schemas are. These
+   *        will be checked for recursion. If -stats is chosen, second parameter will be the path to
+   *        the directory with unnormalized schemas and third parameter the path to the directory
+   *        with normalized schemas.
+   * 
    * @throws IOException
    */
   public static void main(String[] args) throws IOException {
-    if (args.length == 4) {
-      File dir = new File(args[2]);
+    switch (args[0]) {
+      case "-normalize":
+        boolean allowDistributedSchemas = Boolean.parseBoolean(args[2].substring(1));
 
-      if (args[0].equals("-analyse")) {
-        Analyser.analyse(dir, Boolean.parseBoolean(args[1].substring(1)),
-            RepositoryType.valueOf(args[3].substring(1)));
-      } else if (args[0].equals("-corpus")) {
-        SchemaCorpus.analyse(new File(args[2]), new File(args[3]),
-            Boolean.parseBoolean(args[1].substring(1)));
-      } else if (args[0].equals("-stats")) {
-        Analyser.executeDetailedStats(new File(args[1]), new File(args[2]), new File(args[3]));
-      } else {
+        switch (args[1]) {
+          case "-corpus":
+            SchemaCorpus corpus = new SchemaCorpus();
+            corpus.normalize(new File(args[3]), new File(args[4]), allowDistributedSchemas);
+            break;
+          case "-testsuite":
+            TestSuite suite = new TestSuite();
+            suite.normalize(new File(args[3]), allowDistributedSchemas, RepositoryType.TESTSUITE);
+            break;
+          case "-normal":
+            DirNormalizer normalizer = new DirNormalizer();
+            normalizer.normalize(new File(args[3]), allowDistributedSchemas, RepositoryType.NORMAL);
+            break;
+          default:
+            throw new IllegalArgumentException("Unexpected value: " + args[1]);
+        }
+      case "-recursion":
+        Analyser analyser1 = new Analyser();
+        analyser1.analyseRecursion(new File(args[1]));
+        break;
+      case "-stats":
+        Analyser analyser2 = new Analyser();
+        analyser2.createDetailedStats(new File(args[1]), new File(args[2]));
+        break;
+      default:
         throw new IllegalArgumentException("Unexpected value: " + args[0]);
-      }
-    } else {
-      throw new IllegalArgumentException("Invalid argument count");
     }
   }
 }

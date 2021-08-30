@@ -20,22 +20,43 @@ import util.SchemaUtil;
 import util.TestObject;
 
 /**
- * Used to verify normalization
+ * Used to normalize and to check whether normalization was correct in the JSON Schema TestSuite.
  * 
  * @author Lukas Ellinger
  */
-public class TestSuiteVerifier {
+public class TestSuite extends DirNormalizer {
+
   /**
-   * Checks whether the normalization was correct for the JSON Schema TestSuite Draft06. Therefore
-   * it is checked whether the validity of the tests equals the validity if validated with the
-   * normalized schema. If not, then a entry in the log-file is written.
+   * Normalizes all extracted valid schemas of <code>testSuiteDir</code> and stores them.
+   * 
+   * @param testSuiteDir directory of TestSuite.
+   * @param allowDistributedSchemas <code>true</code>, if remote refs to other schemas are allowed.
+   *        Otherwise should be <code>false</code>.
+   * @param repType type of Repository.
+   * @throws IOException
+   */
+  @Override
+  public void normalize(File testSuiteDir, boolean allowDistributedSchemas, RepositoryType repType) throws IOException {
+    List<Pair<JsonObject, TestObject[]>> testData = getTestData(testSuiteDir);
+    File extractedSchemas = new File("extractedSchemas_" + testSuiteDir.getName());
+    extractedSchemas.mkdir();
+    extractSchemas(extractedSchemas, testData);
+    File normalizedDir = new File("Normalized_" + testSuiteDir.getName());
+    normalizedDir.mkdir();
+    
+    super.normalize(extractedSchemas, allowDistributedSchemas, repType);
+  }
+
+  /**
+   * Checks whether the normalization was correct for the JSON Schema TestSuite. Therefore it is
+   * checked whether the validity of the tests equals the validity if validated with the normalized
+   * schema. If not, then a entry in the log-file is written.
    * 
    * @param testSuiteDir directory in which files of the testsuite are stored.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
    */
-  public static void checkForCorrectNormalization(File testSuiteDir,
-      boolean allowDistributedSchemas) {
+  public void checkForCorrectNormalization(File testSuiteDir, boolean allowDistributedSchemas) {
     if (!testSuiteDir.isDirectory()) {
       throw new IllegalArgumentException(testSuiteDir.getName() + " needs to be a directory");
     }
@@ -74,34 +95,37 @@ public class TestSuiteVerifier {
    * @param testSuiteDir directory in which files of the testsuite are stored.
    * @return schemas with their specific test data.
    */
-  private static List<Pair<JsonObject, TestObject[]>> getTestData(File testSuiteDir) {
+  private List<Pair<JsonObject, TestObject[]>> getTestData(File testSuiteDir) {
     assert testSuiteDir.isDirectory();
 
     File[] schemas = testSuiteDir.listFiles();
     List<Pair<JsonObject, TestObject[]>> testData = new ArrayList<>();
     for (File file : schemas) {
       try {
+        if (file.isDirectory()) {
+          testData.addAll(getTestData(file));
+        } else {
+          JSONArray array = new JSONArray(FileUtils.readFileToString(file, "UTF-8"));
 
-        JSONArray array = new JSONArray(FileUtils.readFileToString(file, "UTF-8"));
+          for (int i = 0; i < array.length(); i++) {
+            JSONObject index = array.getJSONObject(i);
+            Object schemaObj = index.get("schema");
 
-        for (int i = 0; i < array.length(); i++) {
-          JSONObject index = array.getJSONObject(i);
-          Object schemaObj = index.get("schema");
+            if (schemaObj instanceof JSONObject) {
+              JSONObject schema = (JSONObject) schemaObj;
+              JSONArray testsArray = index.getJSONArray("tests");
+              TestObject[] tests = new TestObject[testsArray.length()];
 
-          if (schemaObj instanceof JSONObject) {
-            JSONObject schema = (JSONObject) schemaObj;
-            JSONArray testsArray = index.getJSONArray("tests");
-            TestObject[] tests = new TestObject[testsArray.length()];
+              for (int j = 0; j < testsArray.length(); j++) {
+                JSONObject testJ = testsArray.getJSONObject(j);
+                tests[j] = new TestObject(file.getName() + " Schema: " + i + " Test: " + j,
+                    testJ.get("data"), testJ.getBoolean("valid"));
+              }
 
-            for (int j = 0; j < testsArray.length(); j++) {
-              JSONObject testJ = testsArray.getJSONObject(j);
-              tests[j] = new TestObject(file.getName() + " Schema: " + i + " Test: " + j,
-                  testJ.get("data"), testJ.getBoolean("valid"));
+              testData.add(new ImmutablePair<>(Converter.toJson(schema), tests));
+            } else {
+              Log.severe(file.getName() + " Schema:" + i + " has no JSONObject schema");
             }
-
-            testData.add(new ImmutablePair<>(Converter.toJson(schema), tests));
-          } else {
-            Log.severe(file.getName() + " Schema:" + i + " has no JSONObject schema");
           }
         }
       } catch (Exception e) {
@@ -119,7 +143,7 @@ public class TestSuiteVerifier {
    * @param splittedTests to store the schemas from.
    * @throws IOException if schemas cannot be stored to <code>dir</code>.
    */
-  private static void extractSchemas(File dir, List<Pair<JsonObject, TestObject[]>> splittedTests)
+  private void extractSchemas(File dir, List<Pair<JsonObject, TestObject[]>> splittedTests)
       throws IOException {
     dir.mkdir();
 

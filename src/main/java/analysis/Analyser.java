@@ -28,62 +28,49 @@ import util.SchemaUtil;
 public class Analyser {
 
   /**
-   * Analyse all files in <code>dir</code>. All normalized schemas get stored in "Normalized_name"
-   * with name being the name of <code>dir</code>. A csv file with name "analysis_name" is created.
-   * In it it can be checked for each file what was determined.
+   * Analyse all files in <code>normalizedDir</code> for recursion. The schemas need to be
+   * normalized. A csv file with name "analysis_{name}" is created with {name} being
+   * <code>normalizeDir.getName()</code>. In this file each schema has an assigned
+   * <code>RecursionType</code>.
    * 
-   * @param dir has to be a directory. all files in this get normalized.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param normalizedDir has to be a directory. All schemas need to be normalized.
    * @throws IOException
    */
-  public static void analyse(File dir, boolean allowDistributedSchemas, RepositoryType repType)
-      throws IOException {
-    if (!dir.isDirectory()) {
-      throw new IllegalArgumentException(dir.getName() + " needs to be a directory");
+  public void analyseRecursion(File normalizedDir) throws IOException {
+    if (!normalizedDir.isDirectory()) {
+      throw new IllegalArgumentException(normalizedDir.getName() + " has to be a directory");
     }
 
-    File normalizedDir = new File("Normalized_" + dir.getName());
-    normalizedDir.mkdir();
-
-    File[] files = dir.listFiles();
     int recursive = 0;
     int unguardedRecursive = 0;
-    int illegalDraft = 0;
     int invalidReference = 0;
-
-    File analysisFile = new File("analysis_" + dir.getName() + ".csv");
+    File[] files = normalizedDir.listFiles();
+    File analysisFile = new File("recursionanalysis_" + normalizedDir.getName() + ".csv");
     createAnalysisCSV(analysisFile);
-    for (File file : files) {
-      String[] fileRow = {file.getName(), "", "", "", ""};
-      if (SchemaUtil.isValidToDraft(file)) {
-        try {
-          RecursionChecker checker = new RecursionChecker(
-              SchemaUtil.normalize(file, null, normalizedDir, allowDistributedSchemas, repType));
-          try {
-            RecursionType type = checker.checkForRecursion();
-            if (type == RecursionType.GUARDED || type == RecursionType.RECURSION) {
-              fileRow[1] = "TRUE";
-              recursive++;
 
-              if (type != RecursionType.GUARDED) {
-                fileRow[2] = "TRUE";
-                unguardedRecursive++;
-              }
-            }
-          } catch (Exception e) {
-            Log.severe(file.getName() + ": Error occured during recursion analysis - " + e);
+    for (File schema : files) {
+      RecursionChecker checker = new RecursionChecker(schema);
+      String[] fileRow = {schema.getName(), "", "", ""};
+
+      try {
+        RecursionType type = checker.checkForRecursion();
+        if (type == RecursionType.GUARDED || type == RecursionType.RECURSION) {
+          fileRow[1] = "TRUE";
+          recursive++;
+
+          if (type != RecursionType.GUARDED) {
+            fileRow[2] = "TRUE";
+            unguardedRecursive++;
           }
-        } catch (InvalidReferenceException e) {
-          fileRow[3] = "TRUE";
-          Log.warn(file, e);
-          invalidReference++;
         }
-      } else {
-        fileRow[4] = "TRUE";
-        illegalDraft++;
+      } catch (InvalidReferenceException e) {
+        fileRow[3] = "TRUE";
+        Log.warn(schema, e);
+        invalidReference++;
+      } catch (Exception e) {
+        Log.severe(schema, e);
       }
+
       CSVUtil.writeToCSV(analysisFile, fileRow);
     }
 
@@ -91,39 +78,42 @@ public class Analyser {
     Log.info("Total: " + files.length);
     Log.info("Recursive: " + recursive);
     Log.info("Thereof unguarded recursive: " + unguardedRecursive);
-    Log.info("Illegal draft: " + illegalDraft);
     Log.info("Invalid reference: " + invalidReference);
+    Log.info("----------------------------------");
   }
 
   /**
-   * Prints stats to log-file and creates csv-file with schema types (single-file schemas,
-   * distributed schemas). Uses cleaned schemas (all schemas that could be normalized).
+   * Prints stats to log-file and creates csv-file (schmeaTypes_{unnormalizedDir.getName()}.csv)
+   * with schema types (single-file schemas, distributed schemas). Uses cleaned schemas (all schemas
+   * that could be normalized).
    * 
-   * @param csvRecursion csv file of recursion analysis.
+   * @param csvRecursion csv-file of recursion analysis.
    * @param unnormalizedDir directory of unnormalized schemas.
    * @param normalizedDir directory of normalized schemas.
    * @throws IOException
    */
-  public static void executeDetailedStats(File csvRecursion, File unnormalizedDir,
-      File normalizedDir) throws IOException {
-    if (!csvRecursion.exists() || !unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
-      throw new IllegalArgumentException(csvRecursion.getName() + " needs to exist and "
-          + unnormalizedDir.getName() + ", " + normalizedDir.getName() + " need to be directories");
+  public void createDetailedStats(File unnormalizedDir, File normalizedDir)
+      throws IOException {
+    if (!unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
+      throw new IllegalArgumentException(unnormalizedDir.getName() + " and "
+          + normalizedDir.getName() + " need to be directories");
     }
 
+    analyseRecursion(normalizedDir);
     separateSchemasByType(unnormalizedDir, normalizedDir);
-    detailedStats(new File("schemaTypes.csv"), csvRecursion, unnormalizedDir, normalizedDir);
+    calcDetailedStats(new File("schemaTypes_" + unnormalizedDir.getName() + ".csv"),
+        new File("recursionanalysis_" + normalizedDir.getName() + ".csv"), unnormalizedDir,
+        normalizedDir);
   }
 
-  private static void createAnalysisCSV(File csv) throws IOException {
+  private void createAnalysisCSV(File csv) throws IOException {
     assert csv.exists();
 
-    String[] head =
-        {"name", "recursiv", "unguarded_recursiv", "invalid_reference", "illegal_draft"};
+    String[] head = {"name", "recursiv", "unguarded_recursiv", "invalid_reference"};
     CSVUtil.writeToCSV(csv, head);
   }
 
-  private static int countRows(String s) throws IOException {
+  private int countRows(String s) throws IOException {
     BufferedReader in = new BufferedReader(new StringReader(s));
     int count = 0;
 
@@ -141,7 +131,7 @@ public class Analyser {
    * @return line count of <code>file</code>.
    * @throws IOException
    */
-  public static int countRowsJSON(File file) throws IOException {
+  public int countRowsJSON(File file) throws IOException {
     if (!file.exists()) {
       throw new IllegalArgumentException(file.getName() + " needs to exist.");
     }
@@ -161,14 +151,14 @@ public class Analyser {
    *        <code>unnormalizedDir</code>.
    * @throws IOException
    */
-  public static void separateSchemasByType(File unnormalizedDir, File normalizedDir)
+  public void separateSchemasByType(File unnormalizedDir, File normalizedDir)
       throws IOException {
     if (!unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
       throw new IllegalArgumentException(unnormalizedDir.getName() + " and "
           + normalizedDir.getName() + " need to be directories");
     }
 
-    File csv = new File("schemaTypes.csv");
+    File csv = new File("schemaTypes_" + unnormalizedDir.getName() + ".csv");
     String[] head = {"name", "distributed"};
     CSVUtil.writeToCSV(csv, head);
 
@@ -187,8 +177,8 @@ public class Analyser {
   }
 
   /**
-   * Prints stats to log-file and creates csv-file with schema types (single-file schemas,
-   * distributed schemas). Uses cleaned schemas (all schemas that could be normalized.
+   * Calculates stats and prints them to log-file. Uses cleaned schemas (all schemas that could be
+   * normalized.
    * 
    * @param csvRecursion csv file of recursion analysis.
    * @param csvSchemaTypes csv file of type (single or distributed) analysis.
@@ -196,7 +186,7 @@ public class Analyser {
    * @param normalizedDir directory of normalized schemas.
    * @throws IOException
    */
-  public static void detailedStats(File csvSchemaTypes, File csvRecursion, File unnormalizedDir,
+  public void calcDetailedStats(File csvSchemaTypes, File csvRecursion, File unnormalizedDir,
       File normalizedDir) throws IOException {
     if (!csvRecursion.exists() || !csvSchemaTypes.exists() || !unnormalizedDir.isDirectory()
         || !normalizedDir.isDirectory()) {
@@ -223,8 +213,10 @@ public class Analyser {
       boolean isRecursive = false;
 
       for (CSVRecord recordRecursion : recordsRecursion) {
-        if (recordRecursion.get(0).equals(fileName) && recordRecursion.get(1).equals("TRUE")) {
-          isRecursive = true;
+        if (recordRecursion.get(0).equals(normalizedFileName)) {
+          if (recordRecursion.get(1).equals("TRUE")) {
+            isRecursive = true;
+          }
           break;
         }
       }
@@ -258,18 +250,19 @@ public class Analyser {
     int avgLoCOverallNormalized = (totalLoCDistributedFileNormalized + totalLoCSingleFileNormalized)
         / (singleFilesCount + distributedFilesCount);
 
-    double blowUpSingleFile = blowUp(avgLocSingleFile, avgLocSingleFileNormalized);
-    double blowUpDistributedFile = blowUp(avgLoCDistributedFile, avgLocDistributedFileNormalized);
-    double blowUpOverall = blowUp(avgLoCOverall, avgLoCOverallNormalized);
+    double blowUpSingleFile = calcBlowUp(avgLocSingleFile, avgLocSingleFileNormalized);
+    double blowUpDistributedFile =
+        calcBlowUp(avgLoCDistributedFile, avgLocDistributedFileNormalized);
+    double blowUpOverall = calcBlowUp(avgLoCOverall, avgLoCOverallNormalized);
 
     Log.info("Total single-file-schemas: " + singleFilesCount);
-    Log.info("Single-file-schemas Rekursion: " + recursiveCountSingleFiles);
+    Log.info("Single-file-schemas recursion: " + recursiveCountSingleFiles);
     Log.info("Avg LoC single-file-schemas: " + avgLocSingleFile);
     Log.info("Avg LoC single-file-schemas normalized: " + avgLocSingleFileNormalized);
     Log.info("BlowUp single-file-schemas: " + blowUpSingleFile);
     Log.info("----------------------------------");
     Log.info("Total distributed-schemas: " + distributedFilesCount);
-    Log.info("Distributed-schemas Rekursion: " + recursiveCountDistributedFiles);
+    Log.info("Distributed-schemas recursion: " + recursiveCountDistributedFiles);
     Log.info("Avg LoC distributed-schemas: " + avgLoCDistributedFile);
     Log.info("Avg LoC distributed-schemas normalized: " + avgLocDistributedFileNormalized);
     Log.info("BlowUp distributed-schemas: " + blowUpDistributedFile);
@@ -277,9 +270,10 @@ public class Analyser {
     Log.info("Avg LoC overall: " + avgLoCOverall);
     Log.info("Avg LoC overall normalized: " + avgLoCOverallNormalized);
     Log.info("BlowUp overall: " + blowUpOverall);
+    Log.info("----------------------------------");
   }
 
-  private static double blowUp(int base, int value) {
+  private double calcBlowUp(int base, int value) {
     assert base != 0;
 
     return ((double) value) / base - 1;

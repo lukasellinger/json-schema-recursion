@@ -2,7 +2,6 @@ package model.normalization;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -29,6 +28,7 @@ import util.URLLoader;
  * @author Lukas Ellinger
  */
 public class SchemaFile {
+  private static final String TESTSUITE_REMOTES_DIR = /*"/home/TestSuiteDraft4/remotes";*/"/Users/lukasellinger/Library/remotes/";
   private URI id;
   private JsonObject object;
   private SchemaStore store;
@@ -45,11 +45,12 @@ public class SchemaFile {
    * @param repType type of Repository.
    */
   public SchemaFile(File file, boolean allowDistributedSchemas, RepositoryType repType) {
-    id = file.toURI();
+    this.id = file.toURI();
+    store = new SchemaStore(allowDistributedSchemas, repType);
     loadJsonObject();
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
-    store = new SchemaStore(this, allowDistributedSchemas, repType);
+    store.addRootSchemaFile(this);
   }
 
   /**
@@ -59,10 +60,10 @@ public class SchemaFile {
    */
   public SchemaFile(URI id, SchemaStore store) {
     this.id = id;
+    this.store = store;
     loadJsonObject();
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
-    this.store = store;
   }
 
   /**
@@ -75,11 +76,12 @@ public class SchemaFile {
    */
   public SchemaFile(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
     this.id = file.toURI();
+    store = new SchemaStore(allowDistributedSchemas, repType);
     loadJsonObject();
     draft = SchemaUtil.getDraft(object);
     this.id = id;
     setIdFromSchema();
-    store = new SchemaStore(this, allowDistributedSchemas, repType);
+    store.addRootSchemaFile(this);
   }
 
   public URI getRoot() {
@@ -104,7 +106,7 @@ public class SchemaFile {
       try {
         if (store.getRepType().equals(RepositoryType.TESTSUITE)) {
           File file = new File(
-              id.toString().replace("http://localhost:1234/", "/home/TestSuiteDraft4/remotes"));
+              id.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
           object = gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
           Store.storeSchema(object, id);
         } else if (store.getRepType().equals(RepositoryType.CORPUS)) {
@@ -116,6 +118,8 @@ public class SchemaFile {
           } catch (URISyntaxException e1) {
             throw new InvalidIdentifierException(id + " is no valid URI with query raw=true");
           }
+        } else {
+          throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
         }
       } catch (IOException e2) {
         throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
@@ -199,10 +203,10 @@ public class SchemaFile {
     if (!rootScheme.equals(idScheme) || !rootAuthority.equals(idAuthority)) {
       return id.toString();
     } else {
-      File nf = new File(store.getRoot().getPath());
+      File root = new File(store.getRoot().getPath());
       File idFile = new File(id.getPath());
 
-      Optional<Path> rootPath = Optional.ofNullable(Paths.get(nf.getAbsolutePath()).getParent());
+      Optional<Path> rootPath = Optional.ofNullable(Paths.get(root.getAbsolutePath()).getParent());
       Path idPath = Paths.get(idFile.getAbsolutePath());
       if (rootPath.isEmpty()) {
         return idPath.toString().substring(1);

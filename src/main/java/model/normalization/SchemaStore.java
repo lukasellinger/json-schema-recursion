@@ -29,8 +29,18 @@ public class SchemaStore {
    */
   public SchemaStore(SchemaFile rootSchemaFile, boolean allowDistributedSchemas,
       RepositoryType repType) {
-    this.repType = repType;
     this.allowDistributedSchemas = allowDistributedSchemas;
+    this.repType = repType;
+    this.root = rootSchemaFile.getId();
+    loadedFiles.add(rootSchemaFile);
+  }
+  
+  public SchemaStore(boolean allowDistributedSchemas, RepositoryType repType) {
+    this.allowDistributedSchemas = allowDistributedSchemas;
+    this.repType = repType;
+  }
+  
+  public void addRootSchemaFile(SchemaFile rootSchemaFile) {
     this.root = rootSchemaFile.getId();
     loadedFiles.add(rootSchemaFile);
   }
