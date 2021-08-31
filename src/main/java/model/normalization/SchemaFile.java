@@ -28,7 +28,7 @@ import util.URLLoader;
  * @author Lukas Ellinger
  */
 public class SchemaFile {
-  private static final String TESTSUITE_REMOTES_DIR = "/home/TestSuiteDraft4/remotes";
+  private static final String TESTSUITE_REMOTES_DIR = "/home/TestSuiteDraft4/remotes/";
   private URI id;
   private JsonObject object;
   private SchemaStore store;

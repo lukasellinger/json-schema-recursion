@@ -36,14 +36,13 @@ public class TestSuite extends DirNormalizer {
    * @throws IOException
    */
   @Override
-  public void normalize(File testSuiteDir, boolean allowDistributedSchemas, RepositoryType repType) throws IOException {
+  public void normalize(File testSuiteDir, boolean allowDistributedSchemas, RepositoryType repType)
+      throws IOException {
     List<Pair<JsonObject, TestObject[]>> testData = getTestData(testSuiteDir);
     File extractedSchemas = new File("extractedSchemas_" + testSuiteDir.getName());
     extractedSchemas.mkdir();
     extractSchemas(extractedSchemas, testData);
-    File normalizedDir = new File("Normalized_" + testSuiteDir.getName());
-    normalizedDir.mkdir();
-    
+
     super.normalize(extractedSchemas, allowDistributedSchemas, repType);
   }
 
