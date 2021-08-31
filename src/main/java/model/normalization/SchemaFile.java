@@ -108,7 +108,6 @@ public class SchemaFile {
           File file = new File(
               id.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
           object = gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
-          Store.storeSchema(object, id);
         } else if (store.getRepType().equals(RepositoryType.CORPUS)) {
           try {
             URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
