@@ -17,17 +17,18 @@ public class Main {
    * If jar has already been executed once there possibly is a directory "Store" and a file
    * "UriOfFiles.csv" next to the jar. These two are used to store all remote refs. If you are
    * analysing the schema dataset again these are used and no remote refs are downloaded from the
-   * internet. If you want to analyse a different dataset you have to delete these two files.
+   * internet.
    * 
    * @param args As first parameter choose between -normalize | -recursion | -stats. If -normalize
    *        is chosen, second parameter will be the repositorytype. Choose between -corpus |
-   *        -testsuite | -normal. Third parameter is the path to the directory to analyse in
-   *        quotation marks. If -corpus is chosen, an additional fourth parameter with the path to
-   *        repos_fullpath.csv in quotation marks will be needed. If -recursion is chosen, second
-   *        parameter will be the path to the directory in which the normalized schemas are. These
-   *        will be checked for recursion. If -stats is chosen, second parameter will be the path to
-   *        the directory with unnormalized schemas and third parameter the path to the directory
-   *        with normalized schemas.
+   *        -testsuite | -normal. Third parameter is -true | -false in respect to whether
+   *        distributed schemas should be allowed. Fourth parameter is the path to the directory to
+   *        analyse in quotation marks. If -corpus is chosen, an additional fifth parameter with the
+   *        path to repos_fullpath.csv in quotation marks will be needed. If -recursion is chosen,
+   *        second parameter will be the path to the directory in which the normalized schemas are.
+   *        These will be checked for recursion. If -stats is chosen, second parameter will be the
+   *        path to the directory with unnormalized schemas and third parameter the path to the
+   *        directory with normalized schemas.
    * 
    * @throws IOException
    */
