@@ -100,7 +100,10 @@ public class SchemaFile {
         object = Store.getSchema(id);
       } catch (StoreException e) {
         object = gson.fromJson(URLLoader.loadWithRedirect(id.toURL()), JsonObject.class);
-        Store.storeSchema(object, id);
+        
+        if (!id.getScheme().equals("file")) {
+          Store.storeSchema(object, id);
+        }
       }
     } catch (IOException | JsonSyntaxException e) {
       try {
@@ -113,7 +116,10 @@ public class SchemaFile {
             URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
                 id.getFragment());
             object = gson.fromJson(URLLoader.loadWithRedirect(idRaw.toURL()), JsonObject.class);
-            Store.storeSchema(object, id);
+            
+            if (!id.getScheme().equals("file")) {
+              Store.storeSchema(object, id);
+            }
           } catch (URISyntaxException e1) {
             throw new InvalidIdentifierException(id + " is no valid URI with query raw=true");
           }

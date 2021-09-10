@@ -8,7 +8,11 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import analysis.DirNormalizer;
+import analysis.SchemaCorpus;
 import exception.StoreException;
+import model.normalization.Normalizer;
+import model.normalization.RepositoryType;
 
 /**
  * Is used to store schemas in a directory. A uri is safed in a csv-File with the associate file
@@ -21,6 +25,24 @@ public class Store {
   private static File dir = new File("Store");
   private static File csv = new File("UriOfFiles.csv");
 
+  static {
+    try {
+      if (csv.exists()) {
+        List<CSVRecord> records = CSVUtil.loadCSV(csv, ',', true);
+        CSVRecord lastRecord = records.get(records.size() - 1);
+
+        String name = lastRecord.get(0);
+        counter = Integer.parseInt(name.replaceAll("[^\\d]", "")) + 1; // replaces all except
+                                                                       // numbers
+        System.out.println(name.replaceAll("[^\\d]", ""));
+        System.out.println(Integer.parseInt(name.replaceAll("[^\\d]", "")));
+        System.out.println(counter);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
   /**
    * Stores <code>object</code> in <code>dir</code> and makes an entry in <code>csv</code> with its
    * filename and <code>uri</code>.
@@ -30,16 +52,15 @@ public class Store {
    * @throws IOException if it cannot be stored or if entry to <code>csv</code> cannot be made.
    */
   public static void storeSchema(JsonObject object, URI uri) throws IOException {
-    if (!uri.getScheme().equals("file")) {
-      if (!dir.exists()) {
-        dir.mkdir();
-      }
-      File file = new File(dir, "js_" + counter + ".json");
-      SchemaUtil.writeJsonToFile(object, file);
-      String[] line = {file.getName(), uri.toString()};
-      CSVUtil.writeToCSV(csv, line);
-      counter++;
+    if (!dir.exists()) {
+      dir.mkdir();
     }
+
+    File file = new File(dir, "js_" + counter + ".json");
+    SchemaUtil.writeJsonToFile(object, file);
+    String[] line = {file.getName(), uri.toString()};
+    CSVUtil.writeToCSV(csv, line);
+    counter++;
   }
 
   public static JsonObject getSchema(URI uri) throws StoreException, IOException {
