@@ -365,7 +365,7 @@ public class SchemaUtil {
     }
 
     File normalizedFile = new File(store, getNormalizedFileName(unnormalized.getName()));
-        
+
     JsonObject normalizedSchema = normalizer.normalize();
     writeJsonToFile(normalizedSchema, normalizedFile);
     return normalizedSchema;

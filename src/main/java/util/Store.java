@@ -8,11 +8,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import analysis.DirNormalizer;
-import analysis.SchemaCorpus;
 import exception.StoreException;
-import model.normalization.Normalizer;
-import model.normalization.RepositoryType;
 
 /**
  * Is used to store schemas in a directory. A uri is safed in a csv-File with the associate file
@@ -28,15 +24,15 @@ public class Store {
   static {
     try {
       if (csv.exists()) {
-        List<CSVRecord> records = CSVUtil.loadCSV(csv, ',', true);
-        CSVRecord lastRecord = records.get(records.size() - 1);
-
-        String name = lastRecord.get(0);
-        counter = Integer.parseInt(name.replaceAll("[^\\d]", "")) + 1; // replaces all except
-                                                                       // numbers
-        System.out.println(name.replaceAll("[^\\d]", ""));
-        System.out.println(Integer.parseInt(name.replaceAll("[^\\d]", "")));
-        System.out.println(counter);
+        List<CSVRecord> records = CSVUtil.loadCSV(csv, ',', false);
+        
+        if (records.size() > 0) {
+          CSVRecord lastRecord = records.get(records.size() - 1);
+          String name = lastRecord.get(0);
+          
+          // replaces all except numbers
+          counter = Integer.parseInt(name.replaceAll("[^\\d]", "")) + 1;
+        }
       }
     } catch (IOException e) {
       e.printStackTrace();
