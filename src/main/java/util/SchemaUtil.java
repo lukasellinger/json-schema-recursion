@@ -6,7 +6,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map.Entry;
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.everit.json.schema.Schema;
 import org.everit.json.schema.ValidationException;
 import org.everit.json.schema.loader.SchemaLoader;
@@ -47,33 +49,53 @@ public class SchemaUtil {
   }
 
   /**
-   * Checks whether a schema is valid to its specified draft. If no draft was specified or does not
-   * equal draft04, draft06 or draft07, draft04 will be used for verification.
+   * {@link #isValidToDraft(JSONObject)}
    * 
    * @param file to be checked.
    * @return <code>true</code>, if it is valid to the draft. <code>false</code> if not.
    */
   public static boolean isValidToDraft(File file) {
     try {
-      JSONObject fileSchema =
-          (JSONObject) new JSONTokener(FileUtils.readFileToString(file, "UTF-8")).nextValue();
-      int validationDraftNumber = getValidationDraftNumber(fileSchema);
-
-      try (InputStream draftStream = SchemaUtil.class.getClassLoader()
-          .getResourceAsStream("drafts/draft" + validationDraftNumber + ".json")) {
-        JSONObject draft = (JSONObject) new JSONTokener(draftStream).nextValue();
-        SchemaLoader.load(draft).validate(fileSchema);
-        return true;
-      } catch (ValidationException e) {
-        Log.severe(file,
-            new DraftValidationException("Specified draft in Document: "
-                + getDraftString(fileSchema) + " Used for validation: Draft0"
-                + validationDraftNumber + " - " + e.getMessage()));
-      }
+      JSONObject schema = new JSONObject(FileUtils.readFileToString(file, "UTF-8"));
+      return isValidToDraft(schema);
     } catch (Exception e) {
       Log.severe(file, e);
+      return false;
     }
-    return false;
+  }
+
+  /**
+   * {@link #isValidToDraft(JSONObject)}
+   * 
+   * @param schema to be checked.
+   * @return <code>true</code>, if <code>schema</code> is valid to the draft. <code>false</code> if
+   *         not.
+   * @throws IOException
+   */
+  public static boolean isValidToDraft(JsonObject schema) throws IOException {
+    return isValidToDraft(Converter.toJSON(schema));
+  }
+
+  /**
+   * Checks whether a schema is valid to its specified draft. If no draft was specified or does not
+   * equal draft04, draft06 or draft07, draft04 will be used for verification.
+   * 
+   * @param schema to be checked.
+   * @return <code>true</code>, if <code>schema</code> is valid to the draft. <code>false</code> if
+   *         not.
+   * @throws IOException
+   */
+  public static boolean isValidToDraft(JSONObject schema) throws IOException {
+    int validationDraftNumber = getValidationDraftNumber(schema);
+
+    try (InputStream draftStream = SchemaUtil.class.getClassLoader()
+        .getResourceAsStream("drafts/draft" + validationDraftNumber + ".json")) {
+      JSONObject draft = new JSONObject(IOUtils.toString(draftStream, "UTF-8"));
+      SchemaLoader.load(draft).validate(schema);
+      return true;
+    } catch (ValidationException e) {
+      return false;
+    }
   }
 
   /**
@@ -212,7 +234,7 @@ public class SchemaUtil {
   }
 
   /**
-   * {@link getValidationDraftNumber(JsonObject)}
+   * {@link #getValidationDraftNumber(JsonObject)}
    */
   public static int getValidationDraftNumber(JSONObject object) {
     return getValidationDraftNumber(Converter.toJson(object));
@@ -349,26 +371,36 @@ public class SchemaUtil {
    * @param uri base uri of schema. If <code>null</code>, <code>URI</code> of
    *        <code>unnormalized</code> is used.
    * @param store to store normalized schema.
+   * @param csvLineage csv-file of where to store lineage of normalized schema.
    * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
    *        <code>false</code>, if not.
    * @param repType type of Repository.
    * @return normalized schema.
    * @throws IOException
    */
-  public static JsonObject normalize(File unnormalized, URI uri, File store,
+  public static JsonObject normalize(File unnormalized, URI uri, File store, File csvLineage,
       boolean allowDistributedSchemas, RepositoryType repType) throws IOException {
     Normalizer normalizer;
     if (uri != null) {
       normalizer = new Normalizer(unnormalized, uri, allowDistributedSchemas, repType);
     } else {
+      uri = unnormalized.toURI();
       normalizer = new Normalizer(unnormalized, allowDistributedSchemas, repType);
     }
 
     File normalizedFile = new File(store, getNormalizedFileName(unnormalized.getName()));
-
     JsonObject normalizedSchema = normalizer.normalize();
-    writeJsonToFile(normalizedSchema, normalizedFile);
-    return normalizedSchema;
+
+    if (isValidToDraft(normalizedSchema)) {
+      Set<String> loadedFiles = normalizer.getRootSchema().getLoadedFiles();
+      String[] csvEntry = {normalizedFile.getName(), uri.toString(), loadedFiles.toString()};
+      CSVUtil.writeToCSV(csvLineage, csvEntry);
+      writeJsonToFile(normalizedSchema, normalizedFile);
+      return normalizedSchema;
+    } else {
+      throw new DraftValidationException(
+          "Normalized schema of " + unnormalized.getName() + " is not valid to draft");
+    }
   }
 
   /**

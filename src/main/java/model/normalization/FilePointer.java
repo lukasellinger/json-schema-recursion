@@ -2,7 +2,9 @@ package model.normalization;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
@@ -77,7 +79,7 @@ public class FilePointer extends Pointer {
       }
     }
   }
-  
+
   /**
    * Gets converted pointer if its reference is to another file than root-file.
    * 
@@ -94,11 +96,11 @@ public class FilePointer extends Pointer {
         convertedRef += "_id_" + ref;
       }
     }
-    
+
     convertedRef = convertedRef.replace("/", "_");
     return convertedRef;
   }
-  
+
   /**
    * Gets converted pointer if it consists of a reference to a schema inside root-file and a
    * JSON-Pointer reference inside of this.
@@ -106,24 +108,25 @@ public class FilePointer extends Pointer {
    * @return converted pointer.
    */
   private String convertPointerToIdAndRef() {
-    Path rootPath = Path.of(schema.getRoot().getPath()).getParent();
-    Path idPath = Path.of(schema.getResScope().getPath());
+    Optional<Path> rootPath =
+        Optional.ofNullable(Paths.get(URIUtil.getParentURI(schema.getRoot())));
+    Path idPath = new File(schema.getResScope().getPath()).toPath();
 
-    if (rootPath == null) {
+    if (rootPath.isEmpty()) {
       if (idPath.toString().equals("")) {
         return super.convertPointer();
       } else {
         return idPath + "_" + super.convertPointer();
       }
     } else {
-      String relId = rootPath.relativize(idPath).toString();
+      String relId = rootPath.get().relativize(idPath).toString();
       String pointer = ref.substring(ref.indexOf("#/"));
 
       ref = pointer;
       return relId + "_" + super.convertPointer();
     }
   }
-  
+
   /**
    * Gets converted pointer if it is a reference to an id inside of root-file.
    * 
@@ -141,7 +144,7 @@ public class FilePointer extends Pointer {
       URI rel = URIUtil.getParentURI(schema.getId()).relativize(schema.getResScope());
       Optional<String> path = Optional.ofNullable(rel.getPath());
       Optional<String> fragment = Optional.ofNullable(rel.getFragment());
-            
+
       if (schema.getId().equals(URIUtil.removeFragment(schema.getResScope()))) {
         ref = "";
       } else {
@@ -169,15 +172,14 @@ public class FilePointer extends Pointer {
   public JsonElement getRefElement() {
     String idToSearch = schema.getResScope().resolve(ref).toString();
     schema.setResScopeToTopLevel();
-    JsonElement element =
-        searchForId(idToSearch, schema.getObject());
+    JsonElement element = searchForId(idToSearch, schema.getObject());
     if (element != null) {
       return element;
     }
     schema.oneScopeUp();
-    
+
     updatePointer();
-    
+
     if (ref.startsWith("#/") || ref.equals("#")) {
       return getRecursivePointerElement(ref, schema.getObject());
     } else {
@@ -259,18 +261,18 @@ public class FilePointer extends Pointer {
       }
       return object;
     }
-    
+
     URI idURIWithoutFragment = URIUtil.removeFragment(idURI);
     if (schema.getResScope().equals(idURIWithoutFragment)) {
       String pointer = idURI.getFragment();
 
       if (pointer.startsWith("/") || pointer.equals("")) {
         JsonElement element = getRecursivePointerElement("#" + pointer, object);
-        
+
         if (schema.getId().equals(idURIWithoutFragment)) {
-          updatePointer(); 
+          updatePointer();
         }
-        
+
         return element;
       }
     }

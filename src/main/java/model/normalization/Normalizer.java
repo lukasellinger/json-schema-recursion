@@ -77,7 +77,7 @@ public class Normalizer {
     SchemaUtil.removeIds(rootSchema.getObject());
     return rootSchema.getObject();
   }
-
+  
   /**
    * Traverses <code>element</code> in preorder. <code>element</code> is the root. While traversing
    * references are normalized. All <code>JsonElements</code> which therefore need to be added to
@@ -180,10 +180,5 @@ public class Normalizer {
     for (JsonElement element : array) {
       traverseTree(element, defsList, schema);
     }
-  }
-  
-  public static void main(String[] args) {
-    Normalizer normalizer = new Normalizer(new File("/Users/lukasellinger/Library/compilerconfig.json"), true, RepositoryType.NORMAL);
-    normalizer.normalize();
   }
 }

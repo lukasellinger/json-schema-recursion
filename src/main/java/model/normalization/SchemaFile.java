@@ -7,8 +7,11 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Stack;
+import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -100,7 +103,7 @@ public class SchemaFile {
         object = Store.getSchema(id);
       } catch (StoreException e) {
         object = gson.fromJson(URLLoader.loadWithRedirect(id.toURL()), JsonObject.class);
-        
+
         if (!id.getScheme().equals("file")) {
           Store.storeSchema(object, id);
         }
@@ -108,15 +111,15 @@ public class SchemaFile {
     } catch (IOException | JsonSyntaxException e) {
       try {
         if (store.getRepType().equals(RepositoryType.TESTSUITE)) {
-          File file = new File(
-              id.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
+          File file =
+              new File(id.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
           object = gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
         } else if (store.getRepType().equals(RepositoryType.CORPUS)) {
           try {
             URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
                 id.getFragment());
             object = gson.fromJson(URLLoader.loadWithRedirect(idRaw.toURL()), JsonObject.class);
-            
+
             if (!id.getScheme().equals("file")) {
               Store.storeSchema(object, id);
             }
@@ -214,9 +217,9 @@ public class SchemaFile {
       Optional<Path> rootPath = Optional.ofNullable(Paths.get(root.getAbsolutePath()).getParent());
       Path idPath = Paths.get(idFile.getAbsolutePath());
       if (rootPath.isEmpty()) {
-        return idPath.toString().substring(1);
+        return FilenameUtils.separatorsToUnix(idPath.toString().substring(1));
       } else {
-        return rootPath.get().relativize(idPath).toString();
+        return FilenameUtils.separatorsToUnix(rootPath.get().relativize(idPath).toString());
       }
     }
   }
@@ -272,6 +275,18 @@ public class SchemaFile {
 
   public JsonObject getObject() {
     return object;
+  }
+
+  /**
+   * Gets a set of <code>Strings</code> of all loaded <code>URIs</code>. This are all
+   * <code>URIs</code> of schemas used for normalization.
+   * 
+   * @return set of <code>Strings</code> of all loaded URIs. This are all <code>URIs</code> of
+   *         schemas used for normalization.
+   */
+  public Set<String> getLoadedFiles() {
+    return store.getLoadedFiles().stream().map(file -> file.getId().toString())
+        .collect(Collectors.toSet());
   }
 
   /**

@@ -3,6 +3,7 @@ package analysis;
 import java.io.File;
 import java.io.IOException;
 import exception.DistributedSchemaException;
+import exception.DraftValidationException;
 import exception.InvalidReferenceException;
 import model.normalization.RepositoryType;
 import util.Log;
@@ -29,27 +30,34 @@ public class DirNormalizer {
     if (!dir.isDirectory()) {
       throw new IllegalArgumentException(dir.getName() + " needs to be a directory");
     }
-    
+
     DirCleaner cleaner = new DirCleaner();
     cleaner.removeNoValidSchemas(dir);
 
     File normalizedDir = new File("Normalized_" + dir.getName());
     normalizedDir.mkdir();
+    File csvLineage = new File("Lineage_" + dir.getName() + ".csv");
 
     int invalidReference = 0;
+    int draftValidation = 0;
     for (File schema : dir.listFiles()) {
       try {
-        SchemaUtil.normalize(schema, null, normalizedDir, allowDistributedSchemas, repType);
+        SchemaUtil.normalize(schema, null, normalizedDir, csvLineage, allowDistributedSchemas,
+            repType);
       } catch (InvalidReferenceException e) {
         Log.warn(schema, e);
         invalidReference++;
       } catch (DistributedSchemaException e) {
         Log.warn(schema, e);
+      } catch (DraftValidationException e) {
+        draftValidation++;
+        Log.warn(schema, e);
       }
     }
-
+ 
     Log.info("Normalization process:");
     Log.info("Invalid reference: " + invalidReference);
+    Log.info("Normalized schemas not valid to draft: " + draftValidation);
     Log.info("----------------------------------");
   }
 }

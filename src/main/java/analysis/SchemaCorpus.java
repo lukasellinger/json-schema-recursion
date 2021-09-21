@@ -15,6 +15,7 @@ import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import exception.DistributedSchemaException;
+import exception.DraftValidationException;
 import exception.InvalidReferenceException;
 import model.normalization.Normalizer;
 import model.normalization.RepositoryType;
@@ -53,8 +54,10 @@ public class SchemaCorpus {
     List<CSVRecord> records = CSVUtil.loadCSV(fullPath, ' ', false);
     File normalizedDir = new File("Normalized_" + schema_corpus.getName());
     normalizedDir.mkdir();
-    
+    File csvLineage = new File("Lineage_" + schema_corpus.getName() + ".csv");
+
     int invalidReference = 0;
+    int draftValidation = 0;
     for (CSVRecord record : records) {
       String file = record.get(0);
       file = file.replaceFirst("js", "pp");
@@ -64,12 +67,15 @@ public class SchemaCorpus {
         URI recordURI = URIUtil.urlToUri(new URL(record.get(1)));
         if (schema.exists()) {
           try {
-            SchemaUtil.normalize(schema, recordURI, normalizedDir, allowDistributedSchemas,
-                RepositoryType.CORPUS);
+            SchemaUtil.normalize(schema, recordURI, normalizedDir, csvLineage,
+                allowDistributedSchemas, RepositoryType.CORPUS);
           } catch (InvalidReferenceException e) {
             Log.warn(schema, e);
             invalidReference++;
           } catch (DistributedSchemaException e) {
+            Log.warn(schema, e);
+          } catch (DraftValidationException e) {
+            draftValidation++;
             Log.warn(schema, e);
           }
         }
@@ -77,9 +83,10 @@ public class SchemaCorpus {
         Log.warn(file, e);
       }
     }
-    
+
     Log.info("Normalization process:");
-    Log.info("Invalid reference: " + invalidReference);
+    Log.info("Invalid references: " + invalidReference);
+    Log.info("Normalized schemas not valid to draft: " + draftValidation);
     Log.info("----------------------------------");
   }
 
@@ -96,7 +103,7 @@ public class SchemaCorpus {
       throw new IllegalArgumentException(schema_corpus.getName() + " needs to be a directory and "
           + fullPath.getName() + " needs to exist");
     }
-    
+
     DirCleaner cleaner = new DirCleaner();
     cleaner.removeNoValidSchemas(schema_corpus);
     markNotExistingFilesFullPath(schema_corpus, fullPath);
@@ -183,8 +190,7 @@ public class SchemaCorpus {
    * @param fullPath file of <code>repos_fullPath.csv</code>.
    * @throws IOException
    */
-  private void markNotExistingFilesFullPath(File schema_corpus, File fullPath)
-      throws IOException {
+  private void markNotExistingFilesFullPath(File schema_corpus, File fullPath) throws IOException {
     assert schema_corpus.isDirectory() && fullPath.exists();
 
     List<CSVRecord> records = CSVUtil.loadCSV(fullPath, ' ', false);

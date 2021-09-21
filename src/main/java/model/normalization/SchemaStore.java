@@ -52,6 +52,10 @@ public class SchemaStore {
   public RepositoryType getRepType() {
     return repType;
   }
+  
+  public List<SchemaFile> getLoadedFiles() {
+    return loadedFiles;
+  }
 
   /**
    * Gets <code>SchemaFile</code> of <code>identifier</code>. If the corresponding is already stored
