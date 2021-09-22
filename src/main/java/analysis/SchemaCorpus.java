@@ -235,7 +235,7 @@ public class SchemaCorpus {
     try (
         BufferedWriter writer = Files.newBufferedWriter(fullPath.toPath(),
             StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
-        CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);) {
+        CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withDelimiter(' '));) {
       csvPrinter.printRecords(newRecords);
       csvPrinter.flush();
     }
