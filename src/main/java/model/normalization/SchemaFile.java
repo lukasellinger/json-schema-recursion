@@ -33,6 +33,7 @@ import util.URLLoader;
 public class SchemaFile {
   private static final String TESTSUITE_REMOTES_DIR = "/home/TestSuiteDraft4/remotes/";
   private URI id;
+  private URI locatedAt;
   private JsonObject object;
   private SchemaStore store;
   private Stack<URI> resScope = new Stack<>();
@@ -48,9 +49,9 @@ public class SchemaFile {
    * @param repType type of Repository.
    */
   public SchemaFile(File file, boolean allowDistributedSchemas, RepositoryType repType) {
-    this.id = file.toURI();
+    locatedAt = file.toURI();
     store = new SchemaStore(allowDistributedSchemas, repType);
-    loadJsonObject();
+    loadJsonObject(locatedAt);
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
     store.addRootSchemaFile(this);
@@ -62,9 +63,9 @@ public class SchemaFile {
    * @param store to use.
    */
   public SchemaFile(URI id, SchemaStore store) {
-    this.id = id;
+    locatedAt = id;
     this.store = store;
-    loadJsonObject();
+    loadJsonObject(locatedAt);
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
   }
@@ -78,11 +79,10 @@ public class SchemaFile {
    * @param repType type of Repository.
    */
   public SchemaFile(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
-    this.id = file.toURI();
+    locatedAt = id;
     store = new SchemaStore(allowDistributedSchemas, repType);
-    loadJsonObject();
+    loadJsonObject(file.toURI());
     draft = SchemaUtil.getDraft(object);
-    this.id = id;
     setIdFromSchema();
     store.addRootSchemaFile(this);
   }
@@ -95,58 +95,61 @@ public class SchemaFile {
     return draft;
   }
 
-  private void loadJsonObject() {
+  private void loadJsonObject(URI location) {
     Gson gson = new Gson();
 
     try {
       try {
-        object = Store.getSchema(id);
+        object = Store.getSchema(location);
       } catch (StoreException e) {
-        object = gson.fromJson(URLLoader.loadWithRedirect(id.toURL()), JsonObject.class);
+        object = gson.fromJson(URLLoader.loadWithRedirect(location.toURL()), JsonObject.class);
 
-        if (!id.getScheme().equals("file")) {
-          Store.storeSchema(object, id);
+        if (!location.getScheme().equals("file")) {
+          Store.storeSchema(object, location);
         }
       }
     } catch (IOException | JsonSyntaxException e) {
       try {
         if (store.getRepType().equals(RepositoryType.TESTSUITE)) {
-          File file =
-              new File(id.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
+          File file = new File(
+              location.toString().replace("http://localhost:1234/", TESTSUITE_REMOTES_DIR));
           object = gson.fromJson(FileUtils.readFileToString(file, "UTF-8"), JsonObject.class);
         } else if (store.getRepType().equals(RepositoryType.CORPUS)) {
           try {
-            URI idRaw = new URI(id.getScheme(), id.getAuthority(), id.getPath(), "raw=true",
-                id.getFragment());
-            object = gson.fromJson(URLLoader.loadWithRedirect(idRaw.toURL()), JsonObject.class);
+            URI locationRaw = new URI(location.getScheme(), location.getAuthority(),
+                location.getPath(), "raw=true", location.getFragment());
+            object =
+                gson.fromJson(URLLoader.loadWithRedirect(locationRaw.toURL()), JsonObject.class);
 
-            if (!id.getScheme().equals("file")) {
-              Store.storeSchema(object, id);
+            if (!location.getScheme().equals("file")) {
+              Store.storeSchema(object, location);
             }
           } catch (URISyntaxException e1) {
-            throw new InvalidIdentifierException(id + " is no valid URI with query raw=true");
+            throw new InvalidIdentifierException(location + " is no valid URI with query raw=true");
           }
         } else {
-          throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
+          throw new InvalidIdentifierException("Schema with " + location + " cannot be loaded");
         }
       } catch (IOException e2) {
-        throw new InvalidIdentifierException("Schema with " + id + " cannot be loaded");
+        throw new InvalidIdentifierException("Schema with " + location + " cannot be loaded");
       } catch (JsonSyntaxException e2) {
-        throw new InvalidIdentifierException("At " + id + " is no valid JsonObject");
+        throw new InvalidIdentifierException("At " + location + " is no valid JsonObject");
       }
     }
   }
 
   /**
-   * If there is a id set in schema then this one <code>id</code> is set to this.
+   * If there is a id set in schema then the <code>id</code> is set to this.
    */
   private void setIdFromSchema() {
     try {
       URI schemaId = SchemaUtil.getId(object, draft);
 
       if (!schemaId.toString().equals("")) {
-        URI resolved = id.resolve(schemaId);
+        URI resolved = locatedAt.resolve(schemaId);
         id = URIUtil.removeFragment(resolved);
+      } else {
+        id = locatedAt;
       }
     } catch (IllegalArgumentException e) {
       throw new InvalidIdentifierException("id declared in schema is no valid URI");
@@ -285,7 +288,7 @@ public class SchemaFile {
    *         schemas used for normalization.
    */
   public Set<String> getLoadedFiles() {
-    return store.getLoadedFiles().stream().map(file -> file.getId().toString())
+    return store.getLoadedFiles().stream().map(file -> file.locatedAt.toString())
         .collect(Collectors.toSet());
   }
 
