@@ -95,10 +95,14 @@ public class SchemaFile {
 
   private void loadJsonObject(URI location) {
     Gson gson = new Gson();
-
+    
     try {
       try {
-        object = Store.getSchema(location);
+        if (location.getScheme().equals("file")) {
+          object = gson.fromJson(URLLoader.loadWithRedirect(location.toURL()), JsonObject.class);
+        } else {
+          object = Store.getSchema(location); 
+        }
       } catch (StoreException e) {
         
         if (store.isFetchSchemasOnline()) {
