@@ -9,6 +9,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.everit.json.schema.loader.SchemaLoader;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import dto.LoadSchemaDTO;
 import model.normalization.Normalizer;
 import model.normalization.RepositoryType;
 import util.Converter;
@@ -29,22 +30,21 @@ public class SchemaStoreDataVerifier {
    * 
    * @param testDataDir directory of test data.
    * @param SchemaDir directory of schemas.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
+   * @param config of how schemas should be loaded.
    */
   public static void checkForCorrectNormalization(File testDataDir, File schemaDir,
-      boolean allowDistributedSchemas) {
+      LoadSchemaDTO config) {
     if (!testDataDir.isDirectory() || !schemaDir.isDirectory()) {
       throw new IllegalArgumentException(
           testDataDir.getName() + " and " + schemaDir.getName() + " need to be directories");
     }
-
+    config.setRepType(RepositoryType.NORMAL);
     List<Pair<File, File[]>> schemas = getTestDataFiles(testDataDir, schemaDir);
     for (Pair<File, File[]> schema : schemas) {
       File schemaFile = schema.getLeft();
       try {
-        JSONObject normalizedSchema = Converter.toJSON(
-            new Normalizer(schemaFile, allowDistributedSchemas, RepositoryType.NORMAL).normalize());
+        JSONObject normalizedSchema =
+            Converter.toJSON(new Normalizer(schemaFile, config).normalize());
         JSONObject unnormalizedSchema =
             new JSONObject(FileUtils.readFileToString(schemaFile, "UTF-8"));
 

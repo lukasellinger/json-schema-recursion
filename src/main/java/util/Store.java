@@ -70,7 +70,7 @@ public class Store {
         }
       }
 
-      throw new StoreException("No file associate with " + uri + " found in store");
+      throw new StoreException("No file associated with " + uri + " found in store");
     } else {
       throw new StoreException(csv.getName() + " does not exist");
     }

@@ -6,6 +6,7 @@ import analysis.Analyser;
 import analysis.DirNormalizer;
 import analysis.SchemaCorpus;
 import analysis.TestSuite;
+import dto.LoadSchemaDTO;
 import model.normalization.RepositoryType;
 
 /**
@@ -22,13 +23,14 @@ public class Main {
    * @param args As first parameter choose between -normalize | -recursion | -stats. If -normalize
    *        is chosen, second parameter will be the repositorytype. Choose between -corpus |
    *        -testsuite | -normal. Third parameter is -true | -false in respect to whether
-   *        distributed schemas should be allowed. Fourth parameter is the path to the directory to
-   *        analyse in quotation marks. If -corpus is chosen, an additional fifth parameter with the
-   *        path to repos_fullpath.csv in quotation marks will be needed. If -recursion is chosen,
-   *        second parameter will be the path to the directory in which the normalized schemas are.
-   *        These will be checked for recursion. If -stats is chosen, second parameter will be the
-   *        path to the directory with unnormalized schemas and third parameter the path to the
-   *        directory with normalized schemas.
+   *        distributed schemas should be allowed. Fourth parameter is -true | -false in respect to
+   *        whether references should be downloaded online or only be fetched offline. Fifth
+   *        parameter is the path to the directory to analyse in quotation marks. If -corpus is
+   *        chosen, an additional sixth parameter with the path to repos_fullpath.csv in quotation
+   *        marks will be needed. If -recursion is chosen, second parameter will be the path to the
+   *        directory in which the normalized schemas are. These will be checked for recursion. If
+   *        -stats is chosen, second parameter will be the path to the directory with unnormalized
+   *        schemas and third parameter the path to the directory with normalized schemas.
    * 
    * @throws IOException
    */
@@ -36,19 +38,26 @@ public class Main {
     switch (args[0]) {
       case "-normalize":
         boolean allowDistributedSchemas = Boolean.parseBoolean(args[2].substring(1));
-
+        boolean fetchSchemasOnline = Boolean.parseBoolean(args[3].substring(1));
+        LoadSchemaDTO config = new LoadSchemaDTO.Builder()
+            .allowDistributedSchemas(allowDistributedSchemas)
+            .fetchSchemasOnline(fetchSchemasOnline)
+            .build();
         switch (args[1]) {
           case "-corpus":
             SchemaCorpus corpus = new SchemaCorpus();
-            corpus.normalize(new File(args[3]), new File(args[4]), allowDistributedSchemas);
+            config.setRepType(RepositoryType.CORPUS);
+            corpus.normalize(new File(args[4]), new File(args[5]), config);
             break;
           case "-testsuite":
             TestSuite suite = new TestSuite();
-            suite.normalize(new File(args[3]), allowDistributedSchemas, RepositoryType.TESTSUITE);
+            config.setRepType(RepositoryType.TESTSUITE);
+            suite.normalize(new File(args[4]), config);
             break;
           case "-normal":
             DirNormalizer normalizer = new DirNormalizer();
-            normalizer.normalize(new File(args[3]), allowDistributedSchemas, RepositoryType.NORMAL);
+            config.setRepType(RepositoryType.NORMAL);
+            normalizer.normalize(new File(args[4]), config);
             break;
           default:
             throw new IllegalArgumentException("Unexpected value: " + args[1]);

@@ -20,10 +20,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import dto.LoadSchemaDTO;
 import exception.DraftValidationException;
 import model.Draft;
 import model.normalization.Normalizer;
-import model.normalization.RepositoryType;
 
 /**
  * Offers utils for JSON Schemas.
@@ -112,7 +112,7 @@ public class SchemaUtil {
     try {
       SchemaLoader.load(fileObject);
       return true;
-    } catch (ValidationException e) {
+    } catch (ValidationException | JSONException e) {
       return false;
     }
   }
@@ -372,20 +372,18 @@ public class SchemaUtil {
    *        <code>unnormalized</code> is used.
    * @param store to store normalized schema.
    * @param csvLineage csv-file of where to store lineage of normalized schema.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    * @return normalized schema.
    * @throws IOException
    */
   public static JsonObject normalize(File unnormalized, URI uri, File store, File csvLineage,
-      boolean allowDistributedSchemas, RepositoryType repType) throws IOException {
+      LoadSchemaDTO config) throws IOException {
     Normalizer normalizer;
     if (uri != null) {
-      normalizer = new Normalizer(unnormalized, uri, allowDistributedSchemas, repType);
+      normalizer = new Normalizer(unnormalized, uri, config);
     } else {
       uri = unnormalized.toURI();
-      normalizer = new Normalizer(unnormalized, allowDistributedSchemas, repType);
+      normalizer = new Normalizer(unnormalized, config);
     }
 
     File normalizedFile = new File(store, getNormalizedFileName(unnormalized.getName()));

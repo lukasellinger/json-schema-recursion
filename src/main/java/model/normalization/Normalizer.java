@@ -11,6 +11,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import dto.LoadSchemaDTO;
 import exception.InvalidIdentifierException;
 import util.SchemaUtil;
 import util.URIUtil;
@@ -23,28 +24,24 @@ import util.URIUtil;
  */
 public class Normalizer {
   private SchemaFile rootSchema;
-  
+
   /**
    * 
    * @param file which should be normalized.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    */
-  public Normalizer(File file, boolean allowDistributedSchemas, RepositoryType repType) {
-    rootSchema = new SchemaFile(file, allowDistributedSchemas, repType);
+  public Normalizer(File file, LoadSchemaDTO config) {
+    rootSchema = new SchemaFile(file, config);
   }
 
   /**
    * 
    * @param file which should be normalized
    * @param id location of where the file is from. Is used as id if no id is declared in the schema.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    */
-  public Normalizer(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
-    rootSchema = new SchemaFile(file, id, allowDistributedSchemas, repType);
+  public Normalizer(File file, URI id, LoadSchemaDTO config) {
+    rootSchema = new SchemaFile(file, id, config);
   }
 
   public SchemaFile getRootSchema() {
@@ -77,7 +74,7 @@ public class Normalizer {
     SchemaUtil.removeIds(rootSchema.getObject());
     return rootSchema.getObject();
   }
-  
+
   /**
    * Traverses <code>element</code> in preorder. <code>element</code> is the root. While traversing
    * references are normalized. All <code>JsonElements</code> which therefore need to be added to

@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -16,6 +17,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import dto.LoadSchemaDTO;
 import exception.InvalidIdentifierException;
 import exception.StoreException;
 import model.Draft;
@@ -44,13 +46,11 @@ public class SchemaFile {
    * this.
    * 
    * @param file of which the <code>SchemaFile</code> should be created.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    */
-  public SchemaFile(File file, boolean allowDistributedSchemas, RepositoryType repType) {
+  public SchemaFile(File file, LoadSchemaDTO config) {
     locatedAt = file.toURI();
-    store = new SchemaStore(allowDistributedSchemas, repType);
+    store = new SchemaStore(config);
     loadJsonObject(locatedAt);
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
@@ -74,13 +74,11 @@ public class SchemaFile {
    * 
    * @param file of which the <code>SchemaFile</code> should be created.
    * @param id location of where the file is from. Is used as id if no id is declared in the schema.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    */
-  public SchemaFile(File file, URI id, boolean allowDistributedSchemas, RepositoryType repType) {
+  public SchemaFile(File file, URI id, LoadSchemaDTO config) {
     locatedAt = id;
-    store = new SchemaStore(allowDistributedSchemas, repType);
+    store = new SchemaStore(config);
     loadJsonObject(file.toURI());
     draft = SchemaUtil.getDraft(object);
     setIdFromSchema();
@@ -102,10 +100,15 @@ public class SchemaFile {
       try {
         object = Store.getSchema(location);
       } catch (StoreException e) {
-        object = gson.fromJson(URLLoader.loadWithRedirect(location.toURL()), JsonObject.class);
+        
+        if (store.isFetchSchemasOnline()) {
+          object = gson.fromJson(URLLoader.loadWithRedirect(location.toURL()), JsonObject.class);
 
-        if (!location.getScheme().equals("file")) {
-          Store.storeSchema(object, location);
+          if (!location.getScheme().equals("file")) {
+            Store.storeSchema(object, location);
+          } 
+        } else {
+          throw e;
         }
       }
     } catch (IOException | JsonSyntaxException e) {
@@ -214,11 +217,9 @@ public class SchemaFile {
     if (!rootScheme.equals(idScheme) || !rootAuthority.equals(idAuthority)) {
       return id.toString();
     } else {
-      File root = new File(store.getRoot().getPath());
-      File idFile = new File(id.getPath());
-
-      Optional<Path> rootPath = Optional.ofNullable(Paths.get(root.getAbsolutePath()).getParent());
-      Path idPath = Paths.get(idFile.getAbsolutePath());
+      Optional<Path> rootPath =
+          Optional.ofNullable(Paths.get(URIUtil.getParentURI(store.getRoot()).getPath()));
+      Path idPath = new File(id.getPath()).toPath();
       if (rootPath.isEmpty()) {
         return FilenameUtils.separatorsToUnix(idPath.toString().substring(1));
       } else {
@@ -263,7 +264,7 @@ public class SchemaFile {
    * the <code>store</code>, then the stored one is returned. Otherwise the new
    * <code>SchemaFile</code> is added to the <code>store</coded> and returned.
    * 
-   * &#64;param file of which the <code>SchemaFile</code> should be returned.
+   * @param file of which the <code>SchemaFile</code> should be returned.
    * 
    * @return <code>SchemaFile</code> of <code>file</code>. If the corresponding is already stored in
    *         the <code>store</code>, then the stored one is returned
@@ -308,5 +309,10 @@ public class SchemaFile {
   @Override
   public String toString() {
     return id.toString();
+  }
+  
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id);
   }
 }

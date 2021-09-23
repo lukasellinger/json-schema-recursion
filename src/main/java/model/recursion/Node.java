@@ -1,5 +1,6 @@
 package model.recursion;
 
+import java.util.Objects;
 import com.google.gson.JsonElement;
 
 /**
@@ -49,5 +50,10 @@ public class Node {
   @Override
   public String toString() {
     return element + " guarded:" + guarded;
+  }
+  
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(element);
   }
 }

@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import com.google.gson.JsonElement;
+import dto.LoadSchemaDTO;
 import exception.DistributedSchemaException;
 
 /**
@@ -13,8 +14,7 @@ import exception.DistributedSchemaException;
  * @author Lukas Ellinger
  */
 public class SchemaStore {
-  private boolean allowDistributedSchemas;
-  private RepositoryType repType;
+  private LoadSchemaDTO config;
   private URI root;
   private List<JsonElement> visited = new ArrayList<>();
   private List<SchemaFile> loadedFiles = new ArrayList<>();
@@ -23,26 +23,25 @@ public class SchemaStore {
    * Stores <code>schema</code> as root and adds it to the <code>loadedFiles</code>.
    * 
    * @param rootSchemaFile top-level schema.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
-   * @param repType type of Repository.
+   * @param config of how schema should be loaded.
    */
-  public SchemaStore(SchemaFile rootSchemaFile, boolean allowDistributedSchemas,
-      RepositoryType repType) {
-    this.allowDistributedSchemas = allowDistributedSchemas;
-    this.repType = repType;
+  public SchemaStore(SchemaFile rootSchemaFile, LoadSchemaDTO config) {
+    this.config = config;
     this.root = rootSchemaFile.getId();
     loadedFiles.add(rootSchemaFile);
   }
-  
-  public SchemaStore(boolean allowDistributedSchemas, RepositoryType repType) {
-    this.allowDistributedSchemas = allowDistributedSchemas;
-    this.repType = repType;
+
+  public SchemaStore(LoadSchemaDTO config) {
+    this.config = config;
   }
-  
+
   public void addRootSchemaFile(SchemaFile rootSchemaFile) {
     this.root = rootSchemaFile.getId();
     loadedFiles.add(rootSchemaFile);
+  }
+
+  public boolean isFetchSchemasOnline() {
+    return config.isFetchSchemasOnline();
   }
 
   public URI getRoot() {
@@ -50,9 +49,9 @@ public class SchemaStore {
   }
 
   public RepositoryType getRepType() {
-    return repType;
+    return config.getRepType();
   }
-  
+
   public List<SchemaFile> getLoadedFiles() {
     return loadedFiles;
   }
@@ -63,6 +62,7 @@ public class SchemaStore {
    * <code>SchemaFile</code> is added to <code>loadedFiles</coded> and returned.
    * 
    * @param identifier of which the <code>SchemaFile</code> should be returned.
+   * 
    * @return <code>SchemaFile</code> of <code>identifier</code>. If the corresponding is already
    *         stored in <code>loadedFiles</code>, then the stored one is returned
    */
@@ -73,7 +73,7 @@ public class SchemaStore {
       }
     }
 
-    if (allowDistributedSchemas) {
+    if (config.isAllowDistributedSchemas()) {
       SchemaFile schema = new SchemaFile(identifier, this);
       loadedFiles.add(schema);
       return schema;

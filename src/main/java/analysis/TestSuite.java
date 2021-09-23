@@ -12,6 +12,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import dto.LoadSchemaDTO;
 import model.normalization.Normalizer;
 import model.normalization.RepositoryType;
 import util.Converter;
@@ -30,20 +31,17 @@ public class TestSuite extends DirNormalizer {
    * Normalizes all extracted valid schemas of <code>testSuiteDir</code> and stores them.
    * 
    * @param testSuiteDir directory of TestSuite.
-   * @param allowDistributedSchemas <code>true</code>, if remote refs to other schemas are allowed.
-   *        Otherwise should be <code>false</code>.
-   * @param repType type of Repository.
+   * @param config of how schemas should be loaded.
    * @throws IOException
    */
   @Override
-  public void normalize(File testSuiteDir, boolean allowDistributedSchemas, RepositoryType repType)
-      throws IOException {
+  public void normalize(File testSuiteDir, LoadSchemaDTO config) throws IOException {
     List<Pair<JsonObject, TestObject[]>> testData = getTestData(testSuiteDir);
     File extractedSchemas = new File("extractedSchemas_" + testSuiteDir.getName());
     extractedSchemas.mkdir();
     extractSchemas(extractedSchemas, testData);
 
-    super.normalize(extractedSchemas, allowDistributedSchemas, repType);
+    super.normalize(extractedSchemas, config);
   }
 
   /**
@@ -52,14 +50,13 @@ public class TestSuite extends DirNormalizer {
    * schema. If not, then a entry in the log-file is written.
    * 
    * @param testSuiteDir directory in which files of the testsuite are stored.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
+   * @param config of how schemas should be loaded.
    */
-  public void checkForCorrectNormalization(File testSuiteDir, boolean allowDistributedSchemas) {
+  public void checkForCorrectNormalization(File testSuiteDir, LoadSchemaDTO config) {
     if (!testSuiteDir.isDirectory()) {
       throw new IllegalArgumentException(testSuiteDir.getName() + " needs to be a directory");
     }
-
+    config.setRepType(RepositoryType.TESTSUITE);
     List<Pair<JsonObject, TestObject[]>> schemas = getTestData(testSuiteDir);
 
     for (Pair<JsonObject, TestObject[]> schema : schemas) {
@@ -73,8 +70,7 @@ public class TestSuite extends DirNormalizer {
 
       try {
         JSONObject normalizedSchema =
-            new JSONObject(new Normalizer(tmp, allowDistributedSchemas, RepositoryType.TESTSUITE)
-                .normalize().toString());
+            new JSONObject(new Normalizer(tmp, config).normalize().toString());
         for (TestObject test : schema.getRight()) {
           SchemaLoader loader = SchemaLoader.builder().schemaJson(normalizedSchema).build();
 

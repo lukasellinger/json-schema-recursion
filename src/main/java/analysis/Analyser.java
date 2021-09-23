@@ -10,6 +10,7 @@ import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import dto.LoadSchemaDTO;
 import exception.DistributedSchemaException;
 import exception.InvalidReferenceException;
 import model.normalization.Normalizer;
@@ -92,8 +93,7 @@ public class Analyser {
    * @param normalizedDir directory of normalized schemas.
    * @throws IOException
    */
-  public void createDetailedStats(File unnormalizedDir, File normalizedDir)
-      throws IOException {
+  public void createDetailedStats(File unnormalizedDir, File normalizedDir) throws IOException {
     if (!unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
       throw new IllegalArgumentException(unnormalizedDir.getName() + " and "
           + normalizedDir.getName() + " need to be directories");
@@ -151,8 +151,7 @@ public class Analyser {
    *        <code>unnormalizedDir</code>.
    * @throws IOException
    */
-  public void separateSchemasByType(File unnormalizedDir, File normalizedDir)
-      throws IOException {
+  public void separateSchemasByType(File unnormalizedDir, File normalizedDir) throws IOException {
     if (!unnormalizedDir.isDirectory() || !normalizedDir.isDirectory()) {
       throw new IllegalArgumentException(unnormalizedDir.getName() + " and "
           + normalizedDir.getName() + " need to be directories");
@@ -164,7 +163,12 @@ public class Analyser {
 
     for (File file : normalizedDir.listFiles()) {
       File unnormalized = new File(unnormalizedDir, file.getName().replace("_Normalized", ""));
-      Normalizer normalizer = new Normalizer(unnormalized, false, RepositoryType.NORMAL);
+      Normalizer normalizer =
+          new Normalizer(unnormalized, new LoadSchemaDTO.Builder()
+              .allowDistributedSchemas(false)
+              .fetchSchemasOnline(false)
+              .setRepType(RepositoryType.NORMAL)
+              .build());
       try {
         normalizer.normalize();
         String[] row = {unnormalized.getName(), ""};

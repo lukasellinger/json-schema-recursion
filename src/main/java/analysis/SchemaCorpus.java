@@ -14,11 +14,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
+import dto.LoadSchemaDTO;
 import exception.DistributedSchemaException;
 import exception.DraftValidationException;
 import exception.InvalidReferenceException;
+import exception.StoreException;
 import model.normalization.Normalizer;
-import model.normalization.RepositoryType;
 import model.recursion.RecursionChecker;
 import util.CSVUtil;
 import util.Log;
@@ -38,11 +39,10 @@ public class SchemaCorpus {
    * 
    * @param schema_corpus directory of <code>schema_corpus</code>.
    * @param fullPath file of <code>repos_fullPath.csv</code>.
-   * @param allowDistributedSchemas <code>true</code>, if remote refs to other schemas are allowed.
-   *        Otherwise should be <code>false</code>.
+   * @param config of how schemas should be loaded.
    * @throws IOException
    */
-  public void normalize(File schema_corpus, File fullPath, boolean allowDistributedSchemas)
+  public void normalize(File schema_corpus, File fullPath, LoadSchemaDTO config)
       throws IOException {
     if (!schema_corpus.isDirectory() || !fullPath.exists()) {
       throw new IllegalArgumentException(schema_corpus.getName() + " needs to be a directory and "
@@ -67,15 +67,14 @@ public class SchemaCorpus {
         URI recordURI = URIUtil.urlToUri(new URL(record.get(1)));
         if (schema.exists()) {
           try {
-            SchemaUtil.normalize(schema, recordURI, normalizedDir, csvLineage,
-                allowDistributedSchemas, RepositoryType.CORPUS);
+            SchemaUtil.normalize(schema, recordURI, normalizedDir, csvLineage, config);
           } catch (InvalidReferenceException e) {
-            Log.warn(schema, e);
             invalidReference++;
-          } catch (DistributedSchemaException e) {
             Log.warn(schema, e);
           } catch (DraftValidationException e) {
             draftValidation++;
+            Log.warn(schema, e);
+          } catch (DistributedSchemaException | StoreException e) {
             Log.warn(schema, e);
           }
         }
@@ -118,13 +117,12 @@ public class SchemaCorpus {
    * @param fullPath file of <code>repos_fullPath.csv</code>.
    * @param csvFile of to be tested schemas. In each row, there only needs to be the number of one
    *        schema. No header.
-   * @param allowDistributedSchemas <code>true</code>, if remote references are allowed.
-   *        <code>false</code>, if not.
+   * @param config of how schemas should be loaded.
    * @throws IOException
    * @throws URISyntaxException
    */
-  public void testSchemas(File schema_corpus, File fullPath, File csvFile,
-      boolean allowDistributedSchemas) throws IOException, URISyntaxException {
+  public void testSchemas(File schema_corpus, File fullPath, File csvFile, LoadSchemaDTO config)
+      throws IOException, URISyntaxException {
     if (!schema_corpus.isDirectory() || !fullPath.exists() || !csvFile.exists()) {
       throw new IllegalArgumentException(schema_corpus.getName() + " needs to be a directory and "
           + fullPath.getName() + " " + csvFile.getName() + " needs to exist");
@@ -142,8 +140,7 @@ public class SchemaCorpus {
       if (unnormalized.exists()) {
         if (SchemaUtil.isValidToDraft(unnormalized)) {
           try {
-            Normalizer normalizer = new Normalizer(unnormalized, reposURI, allowDistributedSchemas,
-                RepositoryType.CORPUS);
+            Normalizer normalizer = new Normalizer(unnormalized, reposURI, config);
             RecursionChecker checker = new RecursionChecker(normalizer.normalize());
             Log.info(unnormalized.getName() + ": " + checker.checkForRecursion().name());
           } catch (InvalidReferenceException e) {
